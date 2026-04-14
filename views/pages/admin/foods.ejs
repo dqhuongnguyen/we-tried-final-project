@@ -1,0 +1,76 @@
+<%- include('../../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>🗂️ Manage Foods</h1>
+    <p><%= total %> food<%= total !== 1 ? 's' : '' %> found</p>
+  </div>
+  <div style="display:flex;gap:.6rem">
+    <a href="/foods/new" class="btn btn-primary">➕ Add Food</a>
+    <a href="/admin" class="btn btn-secondary">← Admin Panel</a>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="/admin/foods" class="filter-bar">
+  <input type="text" name="search" value="<%= query.search || '' %>" placeholder="Search food name…" class="form-control" style="flex:1">
+  <select name="tier" class="form-control" style="width:130px">
+    <option value="all" <%= (!query.tier||query.tier==='all')?'selected':'' %>>All Tiers</option>
+    <option value="Low"    <%= query.tier==='Low'    ?'selected':'' %>>Low GI</option>
+    <option value="Medium" <%= query.tier==='Medium' ?'selected':'' %>>Medium GI</option>
+    <option value="High"   <%= query.tier==='High'   ?'selected':'' %>>High GI</option>
+  </select>
+  <select name="category" class="form-control" style="width:150px">
+    <option value="all" <%= (!query.category||query.category==='all')?'selected':'' %>>All Categories</option>
+    <% categories.forEach(c => { %>
+      <option value="<%= c %>" <%= query.category===c?'selected':'' %>><%= c %></option>
+    <% }) %>
+  </select>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="/admin/foods" class="btn btn-secondary">Reset</a>
+</form>
+
+<div class="card" style="margin-top:1rem">
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Name</th><th>Category</th><th>GI Value</th><th>Tier</th><th>Calories</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <% foods.forEach(f => { %>
+        <tr>
+          <td><strong><%= f.name %></strong></td>
+          <td><%= f.category %></td>
+          <td><%= f.gi_value %></td>
+          <td><span class="gi-badge <%= f.gi_tier.toLowerCase() %>"><%= f.gi_tier %></span></td>
+          <td><%= f.calories_per_100g ? f.calories_per_100g + ' kcal' : '—' %></td>
+          <td>
+            <div style="display:flex;gap:.4rem">
+              <a href="/foods/<%= f._id %>/edit" class="btn btn-secondary btn-sm">Edit</a>
+              <form method="POST" action="/foods/<%= f._id %>?_method=DELETE"
+                    onsubmit="return confirm('Delete <%= f.name %>?')">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (!foods.length) { %>
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--ink2)">No foods found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (pages > 1) { %>
+  <div class="pagination">
+    <% for(let i=1; i<=pages; i++) { %>
+      <a href="/admin/foods?<%= new URLSearchParams({...query, page:i}).toString() %>"
+         class="page-btn <%= page===i ? 'active' : '' %>"><%= i %></a>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+
+<%- include('../../partials/footer') %>

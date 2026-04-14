@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | GI Smart</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar" aria-label="Main navigation">
+  <a href="/" class="nav-brand">GI<span>Smart</span></a>
+
+  <ul class="nav-links">
+    <li><a href="/foods">Foods</a></li>
+
+    <% if (currentUser) { %>
+    <li><a href="/dashboard">Dashboard</a></li>
+    <li><a href="/meal-plan">Meal plan</a></li>
+    <li><a href="/tracking">Tracking</a></li>
+    <% if (currentUser.role === 'admin') { %>
+    <li><a href="/admin" class="nav-link-admin">Admin</a></li>
+    <% } %>
+
+    <li class="nav-user-block">
+      <details class="nav-user-dropdown">
+        <summary class="nav-profile-summary" aria-label="Account menu">
+          <span class="nav-avatar" aria-hidden="true"><%= currentUser.name.charAt(0).toUpperCase() %></span>
+          <span class="nav-user-name"><%= currentUser.name.split(' ')[0] %></span>
+          <% if (currentUser.role === 'admin') { %><span class="admin-badge">admin</span><% } %>
+          <span class="nav-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="nav-dropdown-panel">
+          <a href="/user/profile" class="nav-dropdown-item">Profile</a>
+          <form method="POST" action="/auth/logout" class="nav-dropdown-form">
+            <button type="submit" class="nav-dropdown-item nav-dropdown-signout">Sign out</button>
+          </form>
+        </div>
+      </details>
+    </li>
+
+    <% } else { %>
+    <li><a href="/auth/login">Sign in</a></li>
+    <li><a href="/auth/register" class="btn-nav">Get started</a></li>
+    <% } %>
+  </ul>
+</nav>
+
+<% if (success && success.length) { %>
+  <div class="flash flash-success">✅ <%= Array.isArray(success) ? success.join(' ') : success %></div>
+<% } %>
+<% if (error && error.length) { %>
+  <div class="flash flash-error">⚠️ <%= Array.isArray(error) ? error.join(' ') : error %></div>
+<% } %>
+
+<main class="container">

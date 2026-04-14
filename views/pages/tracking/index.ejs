@@ -1,0 +1,437 @@
+<%- include('../../partials/header') %>
+
+<div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem">
+  <div>
+    <h1>📅 My Tracking</h1>
+    <p><strong>1)</strong> Log what you ate · <strong>2)</strong> We calculate calories, GI, and hydration, then show a conclusion and tips.</p>
+  </div>
+  <a href="/meal-plan" class="btn btn-secondary">🥗 View Meal Plan</a>
+</div>
+
+<!-- Stats Row -->
+<div class="track-stats-grid">
+  <div class="track-stat-card">
+    <div class="ts-icon">📊</div>
+    <div class="ts-num"><%= stats.targetPct %>%</div>
+    <div class="ts-label">On-target rate</div>
+    <div class="ts-sub">% of logged days · last 30d</div>
+  </div>
+  <div class="track-stat-card">
+    <div class="ts-icon">✅</div>
+    <div class="ts-num"><%= stats.loggedDays %></div>
+    <div class="ts-label">Days Logged</div>
+    <div class="ts-sub">of <%= stats.totalDays %> days</div>
+  </div>
+  <div class="track-stat-card">
+    <div class="ts-icon">💧</div>
+    <div class="ts-num"><%= stats.avgWater %>L</div>
+    <div class="ts-label">Avg Water Intake</div>
+    <div class="ts-sub">Per logged day</div>
+  </div>
+  <div class="track-stat-card">
+    <div class="ts-icon">🍽️</div>
+    <div class="ts-num"><%= stats.daysOnTarget %></div>
+    <div class="ts-label">On-target days</div>
+    <div class="ts-sub">App-scored (last 30d)</div>
+  </div>
+</div>
+
+<!-- Step 1: food log -->
+<div class="card track-manual-card" id="log-food">
+  <h2 class="track-section-title"><span class="track-step">1</span> What you ate</h2>
+  <p class="track-section-lead">Search by name (2+ letters), pick a food, set portion and meal slot. We estimate calories from your entries and compare them to your <strong>daily calorie goal</strong> (from your profile).</p>
+  <% if (editEntry) { %>
+  <p class="track-edit-banner" role="status">Editing a logged item — change the fields below and save, or <a href="/tracking?date=<%= manualDateStr %>">cancel</a>.</p>
+  <% } %>
+  <% if (manualDateStr !== todayKey) { %>
+  <p class="track-date-note">You’re viewing <strong><%= manualDateStr %></strong>. Step 2 below is always for <strong>today</strong> (<%= todayKey %>).</p>
+  <% } %>
+
+  <form method="GET" action="/tracking" class="track-date-jump">
+    <label for="manual-date">View / add for</label>
+    <input type="date" id="manual-date" name="date" value="<%= manualDateStr %>">
+    <button type="submit" class="btn btn-sm btn-secondary">Go</button>
+  </form>
+
+  <form method="POST" action="<%= editEntry ? '/tracking/meal/' + editEntry._id + '/update' : '/tracking/meal' %>" class="manual-meal-form">
+    <input type="hidden" name="log_date" value="<%= manualDateStr %>">
+    <div class="manual-meal-fields">
+      <div class="form-group food-search-wrap">
+        <label for="food-search-q">Food</label>
+        <input type="text" id="food-search-q" class="form-control" placeholder="Type at least 2 letters to search…" autocomplete="off" aria-autocomplete="list" aria-controls="food-search-results"
+               value="<%= editEntry && editEntry.food && editEntry.food.name ? editEntry.food.name : '' %>">
+        <input type="hidden" name="food_id" id="food_id" value="<%= editEntry && editEntry.food && editEntry.food._id ? String(editEntry.food._id) : '' %>">
+        <div id="food-search-results" class="food-search-results" role="listbox" hidden></div>
+      </div>
+      <div class="form-group">
+        <label for="meal_type">Meal slot</label>
+        <select name="meal_type" id="meal_type" class="form-control">
+          <option value="Breakfast" <%= editEntry && editEntry.meal_type === 'Breakfast' ? 'selected' : '' %>>Breakfast</option>
+          <option value="Lunch" <%= editEntry && editEntry.meal_type === 'Lunch' ? 'selected' : (!editEntry ? 'selected' : '') %>>Lunch</option>
+          <option value="Dinner" <%= editEntry && editEntry.meal_type === 'Dinner' ? 'selected' : '' %>>Dinner</option>
+          <option value="Snack" <%= editEntry && editEntry.meal_type === 'Snack' ? 'selected' : '' %>>Snacks</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="portion_g">Portion (g)</label>
+        <input type="number" name="portion_g" id="portion_g" class="form-control" min="1" max="2000" value="<%= editEntry ? editEntry.portion_g : 100 %>" step="1">
+      </div>
+      <div class="form-group manual-meal-submit">
+        <% if (editEntry) { %>
+        <button type="submit" class="btn btn-primary">Update entry</button>
+        <a href="/tracking?date=<%= manualDateStr %>" class="btn btn-sm btn-secondary">Cancel</a>
+        <% } else { %>
+        <button type="submit" class="btn btn-primary">Add to log</button>
+        <% } %>
+      </div>
+    </div>
+  </form>
+
+  <% if (manualForDay && manualForDay.length) { %>
+  <ul class="manual-meal-list">
+    <% manualForDay.forEach(function(entry) { %>
+    <li>
+      <span class="mml-name"><%= entry.food && entry.food.name ? entry.food.name : 'Food' %></span>
+      <span class="mml-meta"><%= entry.meal_type %> · <%= entry.portion_g %>g</span>
+      <div class="mml-actions">
+        <a href="/tracking?date=<%= manualDateStr %>&edit=<%= entry._id %>#log-food" class="btn btn-sm btn-secondary">Edit</a>
+        <form method="POST" action="/tracking/meal/<%= entry._id %>/remove" class="mml-remove" onsubmit="return confirm('Remove this entry?');">
+          <input type="hidden" name="back_date" value="<%= manualDateStr %>">
+          <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+        </form>
+      </div>
+    </li>
+    <% }); %>
+  </ul>
+  <% } else { %>
+  <p class="track-empty-hint">No foods logged for this day yet.</p>
+  <% } %>
+
+  <div class="track-kcal-summary track-kcal-<%= kcalHint.band %>">
+    <div class="tks-row">
+      <span class="tks-label">Estimated intake</span>
+      <strong class="tks-val"><%= dayTotalKcal %> kcal</strong>
+    </div>
+    <% if (dailyGoal) { %>
+    <div class="tks-row">
+      <span class="tks-label">Your daily goal</span>
+      <strong class="tks-goal"><%= dailyGoal %> kcal</strong>
+    </div>
+    <% } %>
+    <p class="tks-hint"><%= kcalHint.label %></p>
+  </div>
+</div>
+
+<!-- Step 2: targets + wellbeing (today only) -->
+<div class="card today-log-card">
+  <header class="today-checkin-head">
+    <h2 class="today-checkin-title">
+      <span class="track-step">2</span> Today’s check-in <span class="today-checkin-date" id="today-date"></span>
+    </h2>
+    <p class="today-checkin-lead">We compare your log to your goals, then you confirm water and optional notes — save to record today’s score.</p>
+  </header>
+
+  <% if (todayLog) { %>
+  <p class="log-saved-inline" role="status">Saved — change anything below and save again.</p>
+  <% } %>
+
+  <form method="POST" action="/tracking/log" id="trackForm" class="today-checkin-form">
+
+    <section class="wellness-dash" aria-labelledby="wd-title">
+      <div class="wd-head">
+        <h3 id="wd-title" class="wd-title">Today’s snapshot</h3>
+        <p class="wd-sub">Calories vs your goal, kcal‑weighted GI (lower is gentler), and water vs <%= waterGoalL %>L.</p>
+      </div>
+      <% if (manualDateStr !== todayKey) { %>
+      <p class="wd-scope">Step 1 may be another day — this row is always <strong>today</strong> (<%= todayKey %>).</p>
+      <% } %>
+
+      <div class="wd-grid">
+        <article class="wd-tile wd-tile--cal">
+          <div class="wd-tile-top">
+            <span class="wd-badge wd-badge--cal">kcal</span>
+            <div class="wd-tile-text">
+              <h4 class="wd-tile-name">Energy</h4>
+              <p class="wd-tile-hint">Intake vs daily target</p>
+            </div>
+          </div>
+          <% if (dailyGoal && dailyGoal > 0) { %>
+          <div class="wd-track"><div class="wd-fill wd-fill--cal <%= kcalOver && kcalOver > 0 ? 'is-over' : '' %>" style="width: <%= todayPctFill %>%"></div></div>
+          <div class="wd-nums">
+            <span class="wd-num"><%= todayTotalKcal %></span><span class="wd-slash">/</span><span class="wd-den"><%= dailyGoal %></span><span class="wd-unit">kcal</span>
+          </div>
+          <p class="wd-caption">
+            <% if (todayTotalKcal <= 0) { %>
+            <a class="wd-link" href="/tracking?date=<%= todayKey %>">Log food for today</a> in step 1.
+            <% } else if (kcalRemaining && kcalRemaining > 0) { %>
+            <strong><%= kcalRemaining %></strong> kcal remaining
+            <% } else if (kcalOver && kcalOver > 0) { %>
+            <strong><%= kcalOver %></strong> kcal above goal
+            <% } else { %>
+            Near your calorie range
+            <% } %>
+          </p>
+          <% } else { %>
+          <div class="wd-track wd-track--ghost"><div class="wd-fill wd-fill--cal" style="width:0%"></div></div>
+          <div class="wd-nums"><span class="wd-num"><%= todayTotalKcal %></span><span class="wd-unit">kcal</span></div>
+          <p class="wd-caption wd-caption--muted">Set a daily calorie goal in your profile for a target bar.</p>
+          <% } %>
+        </article>
+
+        <article class="wd-tile wd-tile--gi wd-tile--gi-<%= giBand %>">
+          <div class="wd-tile-top">
+            <span class="wd-badge wd-badge--gi">GI</span>
+            <div class="wd-tile-text">
+              <h4 class="wd-tile-name">Glycemic load</h4>
+              <p class="wd-tile-hint">Weighted by calories · aim ≤55</p>
+            </div>
+          </div>
+          <% if (todayAvgGi != null && giLoadPct != null) { %>
+          <div class="wd-track"><div class="wd-fill wd-fill--gi" style="width: <%= giLoadPct %>%"></div></div>
+          <div class="wd-nums">
+            <span class="wd-num"><%= todayAvgGi %></span><span class="wd-unit">avg GI</span>
+          </div>
+          <p class="wd-caption">
+            <% if (giBand === 'good') { %>Strong — mostly lower‑GI choices.<% } else if (giBand === 'ok') { %>Okay — room to favour lower GI.<% } else { %>High average — try more low‑GI foods tomorrow.<% } %>
+          </p>
+          <% } else { %>
+          <div class="wd-track wd-track--ghost"><div class="wd-fill wd-fill--gi" style="width:0%"></div></div>
+          <div class="wd-nums"><span class="wd-num">—</span></div>
+          <p class="wd-caption wd-caption--muted">Log foods with GI data in step 1 to see this.</p>
+          <% } %>
+        </article>
+
+        <article class="wd-tile wd-tile--hyd">
+          <div class="wd-tile-top">
+            <span class="wd-badge wd-badge--hyd">H₂O</span>
+            <div class="wd-tile-text">
+              <h4 class="wd-tile-name">Hydration</h4>
+              <p class="wd-tile-hint">vs <%= waterGoalL %>L goal</p>
+            </div>
+          </div>
+          <div class="wd-track"><div class="wd-fill wd-fill--hyd" id="waterDashFill" style="width: <%= waterPctFill %>%"></div></div>
+          <div class="wd-nums">
+            <span class="wd-num" id="waterDashLiters"><%= todayWaterL %></span><span class="wd-slash">/</span><span class="wd-den"><%= waterGoalL %></span><span class="wd-unit">L</span>
+          </div>
+          <p class="wd-caption">Adjust the slider below — this updates live.</p>
+        </article>
+      </div>
+    </section>
+
+    <article class="day-verdict day-verdict--<%= dayVerdict.tone %>" aria-labelledby="dv-title">
+      <div class="dv-head">
+        <span class="dv-kicker">Today’s conclusion</span>
+        <% if (dayVerdict.derivedMet === 'yes') { %>
+        <span class="dv-badge dv-badge--yes">On target</span>
+        <% } else if (dayVerdict.derivedMet === 'partial') { %>
+        <span class="dv-badge dv-badge--partial">Partial</span>
+        <% } else if (dayVerdict.derivedMet === 'no') { %>
+        <span class="dv-badge dv-badge--no">Not on target</span>
+        <% } else { %>
+        <span class="dv-badge dv-badge--inc">Incomplete</span>
+        <% } %>
+      </div>
+      <h3 id="dv-title" class="dv-title"><%= dayVerdict.headline %></h3>
+      <ul class="dv-summary">
+        <% dayVerdict.summaryLines.forEach(function(line) { %>
+        <li><%= line %></li>
+        <% }); %>
+      </ul>
+      <div class="dv-recs">
+        <strong class="dv-recs-title">Recommendations</strong>
+        <ul>
+          <% dayVerdict.recommendations.forEach(function(line) { %>
+          <li><%= line %></li>
+          <% }); %>
+        </ul>
+      </div>
+      <p class="dv-footnote">Based on your profile calorie goal, today’s food log, GI data where available, and the water value when you save.</p>
+    </article>
+
+    <section class="checkin-details" aria-label="Check-in">
+      <div class="cd-block">
+        <span class="cd-kicker">Water intake</span>
+        <div class="cd-water">
+          <div class="cd-water-head">
+            <span class="cd-water-val"><span id="waterVal"><%= todayWaterL %></span><span class="cd-water-unit">L</span></span>
+            <span class="cd-water-meta">Goal <%= waterGoalL %>L</span>
+          </div>
+          <input type="range" name="water_intake_L" id="waterRange"
+                 min="0" max="5" step="0.25"
+                 value="<%= todayWaterL %>"
+                 class="cd-range" aria-describedby="waterHint"
+                 data-water-goal="<%= waterGoalL %>">
+          <p class="cd-hint" id="waterHint"></p>
+        </div>
+      </div>
+
+      <div class="form-group cd-notes">
+        <label class="cd-notes-label" for="track-notes">Notes <span class="cd-optional">(optional)</span></label>
+        <textarea name="notes" id="track-notes" class="form-control" rows="2" maxlength="300"
+                  placeholder="Anything worth remembering about today…"
+                  style="resize:vertical"><%= todayLog ? todayLog.notes : '' %></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full cd-submit">
+        <%= todayLog ? 'Update check-in' : 'Save check-in' %>
+      </button>
+    </section>
+  </form>
+</div>
+
+<!-- 30-Day History Calendar -->
+<div class="card" style="margin-top:1.5rem">
+  <h2 style="font-family:'Playfair Display',serif;margin-bottom:1rem">🗓️ 30-Day History</h2>
+  <div class="history-legend">
+    <span class="hl-dot hl-full">●</span> On target
+    <span class="hl-dot hl-partial">●</span> Partial
+    <span class="hl-dot hl-low">●</span> Not on target
+    <span class="hl-dot hl-none">●</span> No log
+  </div>
+  <div class="history-calendar">
+    <% calendar.forEach(day => {
+         const log = day.log;
+         const st = day.dayStatus || 'none';
+         const cls = st === 'full' ? 'hc-full' : st === 'partial' ? 'hc-partial' : st === 'low' ? 'hc-low' : 'hc-none';
+         const isToday = day.key === todayKey;
+         let tip = day.key;
+         if (log) {
+           const mtTip = !log.met_targets ? '' : (log.met_targets === 'yes' ? 'On target' : log.met_targets === 'partial' ? 'Partial' : 'Not on target');
+           tip += (mtTip ? ' · score: ' + mtTip : '') + ' · ' + log.water_intake_L + 'L water';
+         } else tip += ': No log';
+    %>
+      <div class="hc-cell <%= cls %> <%= isToday ? 'hc-today' : '' %>" title="<%= tip %>">
+        <div class="hc-date"><%= new Date(day.date).getDate() %></div>
+        <% if (log) { %>
+          <div class="hc-water"><%= log.water_intake_L %>L</div>
+          <div class="hc-meals"><%= log.met_targets ? (log.met_targets === 'yes' ? 'Y' : log.met_targets === 'partial' ? 'P' : 'N') : '—' %></div>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<%- include('../../partials/health-disclaimer') %>
+
+<script>
+// Today date (short, next to title)
+(function () {
+  var el = document.getElementById('today-date');
+  if (el) el.textContent = ' · ' + new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+})();
+
+// Food search (API) — replaces large dropdown
+(function () {
+  const qInput   = document.getElementById('food-search-q');
+  const hiddenId = document.getElementById('food_id');
+  const results  = document.getElementById('food-search-results');
+  let debounce;
+  let ctrl;
+
+  function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  qInput.addEventListener('input', function () {
+    const q = this.value.trim();
+    hiddenId.value = '';
+    clearTimeout(debounce);
+    if (ctrl) ctrl.abort();
+    if (!q) {
+      results.innerHTML = '';
+      results.hidden = true;
+      return;
+    }
+    if (q.length < 2) {
+      results.innerHTML = '';
+      results.hidden = true;
+      return;
+    }
+    debounce = setTimeout(function () { runSearch(q); }, 280);
+  });
+
+  async function runSearch(q) {
+    if (ctrl) ctrl.abort();
+    ctrl = new AbortController();
+    try {
+      const r = await fetch('/api/foods/search?q=' + encodeURIComponent(q) + '&limit=14', {
+        signal: ctrl.signal,
+        headers: { Accept: 'application/json' },
+      });
+      const j = await r.json();
+      if (!j.success) {
+        results.innerHTML = '<div class="food-search-empty">Search failed.</div>';
+        results.hidden = false;
+        return;
+      }
+      if (!j.data || !j.data.length) {
+        results.innerHTML = '<div class="food-search-empty">No foods match. Try another word.</div>';
+        results.hidden = false;
+        return;
+      }
+      results.innerHTML = j.data.map(function (f) {
+        return (
+          '<button type="button" class="food-search-item" role="option" data-id="' + esc(f._id) + '">' +
+          '<span class="fsn">' + esc(f.name) + '</span>' +
+          '<span class="fsc">' + esc(f.category) + ' · GI ' + esc(f.gi_value) + '</span>' +
+          '</button>'
+        );
+      }).join('');
+      results.hidden = false;
+      results.querySelectorAll('.food-search-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          hiddenId.value = btn.getAttribute('data-id');
+          var nameEl = btn.querySelector('.fsn');
+          qInput.value = nameEl ? nameEl.textContent : '';
+          results.innerHTML = '';
+          results.hidden = true;
+        });
+      });
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error(e);
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.food-search-wrap')) {
+      results.hidden = true;
+    }
+  });
+
+  document.querySelector('.manual-meal-form').addEventListener('submit', function (e) {
+    if (!hiddenId.value) {
+      e.preventDefault();
+      alert('Search and tap a food to select it before adding.');
+    }
+  });
+})();
+
+// Water slider (syncs with wellness snapshot tile)
+const slider = document.getElementById('waterRange');
+const waterVal = document.getElementById('waterVal');
+const waterDashFill = document.getElementById('waterDashFill');
+const waterDashLiters = document.getElementById('waterDashLiters');
+const hint = document.getElementById('waterHint');
+const WATER_GOAL = slider ? parseFloat(slider.getAttribute('data-water-goal')) || 2.5 : 2.5;
+
+function updateWater(v) {
+  if (waterVal) waterVal.textContent = v;
+  if (waterDashLiters) waterDashLiters.textContent = v;
+  const pct = Math.min(100, (v / WATER_GOAL) * 100);
+  if (waterDashFill) waterDashFill.style.width = pct + '%';
+  if (hint) {
+    hint.textContent = v < WATER_GOAL * 0.6 ? 'Under goal — keep sipping.' :
+      v < WATER_GOAL ? 'Almost at your ' + WATER_GOAL + 'L target.' :
+      v < WATER_GOAL * 1.2 ? 'Nice — around goal.' : 'Well above today’s goal.';
+  }
+}
+if (slider) {
+  slider.addEventListener('input', function() { updateWater(parseFloat(this.value)); });
+  updateWater(parseFloat(slider.value));
+}
+</script>
+
+<%- include('../../partials/footer') %>

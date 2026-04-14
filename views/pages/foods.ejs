@@ -1,0 +1,93 @@
+<%- include('../partials/header') %>
+<div class="page-header">
+  <div>
+    <h1>Food Database</h1>
+    <p>Search and filter <%= counts.all %> GI-rated foods</p>
+  </div>
+  <% if (currentUser?.role === 'admin') { %>
+    <a href="/foods/new" class="btn btn-primary">➕ Add Food</a>
+  <% } %>
+</div>
+
+<div class="controls">
+  <form method="GET" action="/foods" class="search-form">
+    <input type="text" name="search" value="<%= query.search||'' %>" placeholder="Search foods…" class="search-input">
+    <select name="tier" class="filter-select">
+      <option value="all">All Tiers</option>
+      <option value="Low"    <%= query.tier==='Low'?'selected':'' %>>✅ Low GI (0–55)</option>
+      <option value="Medium" <%= query.tier==='Medium'?'selected':'' %>>⚠️ Medium (56–69)</option>
+      <option value="High"   <%= query.tier==='High'?'selected':'' %>>❌ High GI (70+)</option>
+    </select>
+    <select name="category" class="filter-select">
+      <option value="all">All Categories</option>
+      <% categories.forEach(c => { %><option value="<%= c %>" <%= query.category===c?'selected':'' %>><%= c %></option><% }) %>
+    </select>
+    <select name="sort" class="filter-select">
+      <option value="gi_asc"  <%= query.sort==='gi_asc'?'selected':'' %>>GI: Low → High</option>
+      <option value="gi_desc" <%= query.sort==='gi_desc'?'selected':'' %>>GI: High → Low</option>
+      <option value="name_asc"<%= query.sort==='name_asc'?'selected':'' %>>Name A–Z</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="/foods" class="btn btn-secondary">Reset</a>
+  </form>
+</div>
+
+<div class="tier-counts">
+  <span class="tc low">✅ Low: <%= counts.Low %></span>
+  <span class="tc medium">⚠️ Medium: <%= counts.Medium %></span>
+  <span class="tc high">❌ High: <%= counts.High %></span>
+  <span class="tc" style="color:var(--ink2)">Showing: <%= foods.length %> of <%= counts.all %></span>
+</div>
+
+<div class="cards-grid">
+  <% foods.forEach(food => { %>
+  <div class="food-card food-card-browse tier-<%= food.gi_tier.toLowerCase() %>">
+    <a href="/foods/<%= food._id %>" class="food-card--link" aria-label="View <%= food.name %> — full details">
+      <div class="card-top">
+        <span class="gi-badge <%= food.gi_tier.toLowerCase() %>"><%= food.gi_tier %> GI · <%= food.gi_value %></span>
+      </div>
+      <div class="food-name"><%= food.name %></div>
+      <div class="food-category"><%= food.category %></div>
+      <div class="gi-bar-wrap">
+        <div class="gi-bar-label"><span>GI score</span><strong><%= food.gi_value %></strong></div>
+        <div class="gi-bar-bg">
+          <div class="gi-bar-fill <%= food.gi_tier.toLowerCase() %>" style="width:<%= Math.min(100, Math.max(0, food.gi_value)) %>%"></div>
+        </div>
+      </div>
+      <% if (food.calories_per_100g) { %>
+      <div class="food-note"><%= food.calories_per_100g %> kcal/100g<% if(food.protein_g) { %> · <%= food.protein_g %>g protein<% } %><% if(food.fibre_g) { %> · <%= food.fibre_g %>g fibre<% } %></div>
+      <% } %>
+      <% if (currentUser?.role !== 'admin') { %>
+      <span class="food-card-hint">View details →</span>
+      <% } %>
+    </a>
+    <% if (currentUser?.role === 'admin') { %>
+    <div class="card-actions card-actions--admin">
+      <a href="/foods/<%= food._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+      <form method="POST" action="/foods/<%= food._id %>?_method=DELETE" class="card-delete-form" onsubmit="return confirm('Delete this food?')">
+        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+      </form>
+    </div>
+    <% } %>
+  </div>
+  <% }) %>
+  <% if (!foods.length) { %>
+    <div class="no-results" style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--ink2)">
+      <div style="font-size:2.5rem;margin-bottom:1rem">🔍</div>
+      <p>No foods found matching your filters.</p>
+      <a href="/foods" class="btn btn-secondary" style="margin-top:.8rem">Clear Filters</a>
+    </div>
+  <% } %>
+</div>
+
+<!-- Pagination -->
+<% if (totalPages && totalPages > 1) { %>
+<div class="pagination" style="margin-top:2rem">
+  <% for(let i=1; i<=totalPages; i++) { %>
+    <a href="/foods?<%= new URLSearchParams({...query, page:i}).toString() %>"
+       class="page-btn <%= currentPage===i ? 'active' : '' %>"><%= i %></a>
+  <% } %>
+</div>
+<% } %>
+
+<%- include('../partials/footer') %>

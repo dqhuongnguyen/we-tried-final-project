@@ -1,0 +1,84 @@
+<%- include('../partials/header') %>
+<section class="hero">
+  <div class="hero-tag">Personalised GI Diet Tracker</div>
+  <h1>Eat <em>Smarter.</em><br>Feel the Difference.</h1>
+  <p class="hero-sub">Track your GI diet, calculate your BMI, and get a personalised meal plan built from 143+ scientifically-rated foods.</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num"><%= stats.total %></div><div class="stat-label">Foods Indexed</div></div>
+    <div class="stat"><div class="stat-num"><%= stats.low %></div><div class="stat-label">Low GI Foods</div></div>
+    <div class="stat"><div class="stat-num"><%= stats.medium %></div><div class="stat-label">Medium GI</div></div>
+    <div class="stat"><div class="stat-num"><%= stats.high %></div><div class="stat-label">High GI</div></div>
+  </div>
+  <!-- <div class="home-mega-grid">
+    <a href="/foods" class="home-mega-btn home-mega-btn--foods">🔍 Browse foods</a>
+    <% if (currentUser) { %>
+      <a href="/dashboard" class="home-mega-btn home-mega-btn--dark">📊 Dashboard</a>
+      <a href="/meal-plan" class="home-mega-btn home-mega-btn--dark">🥗 Meal plan</a>
+      <a href="/tracking" class="home-mega-btn home-mega-btn--dark">📅 Tracking</a>
+    <% } else { %>
+      <a href="/auth/register" class="home-mega-btn home-mega-btn--accent">Get started free →</a>
+      <a href="/auth/login" class="home-mega-btn home-mega-btn--outline">Sign in</a>
+    <% } %>
+  </div> -->
+  <% if (!currentUser) { %>
+  <p class="hero-hint">No account needed to search foods — sign up when you want a meal plan &amp; tracking.</p>
+  <% } %>
+</section>
+
+<section class="features-row">
+  <a href="<%= currentUser ? '/user/profile' : '/auth/register' %>" class="feature-card feature-card--link">
+    <div class="fc-icon">📊</div>
+    <span class="feature-card-kicker">Profile</span>
+    <h3>BMI Analysis</h3>
+    <p>Enter your measurements and instantly get your BMI category and daily calorie target.</p>
+    <span class="feature-card-hint"><%= currentUser ? 'Your health profile →' : 'Sign up to use this →' %></span>
+  </a>
+  <a href="/meal-plan" class="feature-card feature-card--link">
+    <div class="fc-icon">🥗</div>
+    <span class="feature-card-kicker">Plan</span>
+    <h3>Weekly meal plan</h3>
+    <p>Your menu for the week—breakfast, lunch, dinner, and snacks from our database, tuned to your BMI and daily calories.</p>
+    <span class="feature-card-hint">See this week’s meals →</span>
+  </a>
+  <a href="/foods" class="feature-card feature-card--link">
+    <div class="fc-icon">🔍</div>
+    <span class="feature-card-kicker">Browse</span>
+    <h3>Food Database</h3>
+    <p>Search 143+ foods by GI tier, category, and nutritional values.</p>
+    <span class="feature-card-hint">Browse all foods →</span>
+  </a>
+  <a href="<%= currentUser ? '/tracking' : '/auth/register' %>" class="feature-card feature-card--link">
+    <div class="fc-icon">📅</div>
+    <span class="feature-card-kicker">Log</span>
+    <h3>Daily log &amp; targets</h3>
+    <p>We estimate calories, GI, and hydration from your log, then show a conclusion and tips. Your last 30 days at a glance.</p>
+    <span class="feature-card-hint"><%= currentUser ? "Open today's log →" : "Sign up to log days →" %></span>
+  </a>
+</section>
+
+<section class="featured-section">
+  <div class="section-header-row">
+    <div>
+      <h2>Featured Foods</h2>
+      <p class="featured-lead">Tap a food to see full nutrition, or <a href="/foods">open the full database</a>.</p>
+    </div>
+    <a href="/foods" class="btn btn-secondary">View All →</a>
+  </div>
+  <div class="cards-grid">
+    <% featured.forEach(food => { %>
+    <a href="/foods/<%= food._id %>" class="food-card food-card--link tier-<%= food.gi_tier.toLowerCase() %>" aria-label="View <%= food.name %> — full nutrition details">
+      <div class="card-top">
+        <span class="gi-badge <%= food.gi_tier.toLowerCase() %>"><%= food.gi_tier %> GI</span>
+      </div>
+      <div class="food-name"><%= food.name %></div>
+      <div class="food-category"><%= food.category %></div>
+      <div class="gi-bar-wrap">
+        <div class="gi-bar-label"><span>GI Score</span><strong><%= food.gi_value %></strong></div>
+        <div class="gi-bar-bg"><div class="gi-bar-fill <%= food.gi_tier.toLowerCase() %>" style="width:<%= Math.min(100,food.gi_value) %>%"></div></div>
+      </div>
+      <span class="food-card-hint">View details →</span>
+    </a>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/footer') %>

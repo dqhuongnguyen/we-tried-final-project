@@ -1,0 +1,83 @@
+<%- include('../../partials/header') %>
+
+<div class="page-header">
+  <h1>🛡️ Admin Panel</h1>
+  <p>Manage users, foods, and monitor platform activity.</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="admin-stats-grid">
+  <div class="admin-stat-card">
+    <div class="asc-icon">👥</div>
+    <div class="asc-num"><%= stats.userCount %></div>
+    <div class="asc-label">Total Users</div>
+    <a href="/admin/users" class="asc-link">Manage →</a>
+  </div>
+  <div class="admin-stat-card accent">
+    <div class="asc-icon">🛡️</div>
+    <div class="asc-num"><%= stats.adminCount %></div>
+    <div class="asc-label">Admins</div>
+  </div>
+  <div class="admin-stat-card">
+    <div class="asc-icon">🥗</div>
+    <div class="asc-num"><%= stats.foodCount %></div>
+    <div class="asc-label">Foods in DB</div>
+    <a href="/admin/foods" class="asc-link">Manage →</a>
+  </div>
+  <div class="admin-stat-card low">
+    <div class="asc-icon">🟢</div>
+    <div class="asc-num"><%= stats.lowGI %></div>
+    <div class="asc-label">Low GI Foods</div>
+  </div>
+  <div class="admin-stat-card medium">
+    <div class="asc-icon">🟡</div>
+    <div class="asc-num"><%= stats.medGI %></div>
+    <div class="asc-label">Medium GI Foods</div>
+  </div>
+  <div class="admin-stat-card high">
+    <div class="asc-icon">🔴</div>
+    <div class="asc-num"><%= stats.highGI %></div>
+    <div class="asc-label">High GI Foods</div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="admin-quick-actions">
+  <h2 style="font-family:'Playfair Display',serif;margin-bottom:1rem">Quick Actions</h2>
+  <div class="aqa-grid">
+    <a href="/foods/new" class="aqa-btn">➕ Add New Food</a>
+    <a href="/admin/users" class="aqa-btn">👥 View All Users</a>
+    <a href="/admin/foods" class="aqa-btn">🗂️ Manage Foods</a>
+    <a href="/foods" class="aqa-btn">🔍 Browse Food DB</a>
+  </div>
+</div>
+
+<!-- Recent Users -->
+<div class="card" style="margin-top:1.5rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+    <h2 style="font-family:'Playfair Display',serif">Recent Registrations</h2>
+    <a href="/admin/users" class="btn btn-secondary btn-sm">View All</a>
+  </div>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Role</th><th>Goal</th><th>Joined</th></tr>
+      </thead>
+      <tbody>
+        <% recentUsers.forEach(u => { %>
+        <tr>
+          <td><strong><%= u.name %></strong></td>
+          <td><%= u.email %></td>
+          <td>
+            <span class="role-pill <%= u.role %>"><%= u.role %></span>
+          </td>
+          <td><%= u.goal || '—' %></td>
+          <td><%= new Date(u.createdAt).toLocaleDateString() %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

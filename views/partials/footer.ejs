@@ -1,0 +1,193 @@
+</main>
+<footer class="site-footer">
+  <section id="about-gi" class="footer-about" aria-labelledby="footer-about-heading">
+    <div class="container">
+      <h2 id="footer-about-heading" class="footer-about-title">About the Glycaemic Index</h2>
+      <p class="footer-about-lead">The Glycaemic Index (GI) ranks carbohydrate-containing foods on a scale of 0–100 based on how quickly they raise blood glucose levels.</p>
+      <div class="gi-tiers footer-gi-tiers">
+        <div class="gi-tier-card low"><h3>Low GI (0–55)</h3><p>Slow digestion, steady energy, better satiety.</p></div>
+        <div class="gi-tier-card medium"><h3>Medium GI (56–69)</h3><p>Moderate blood sugar rise. Fine in balanced meals.</p></div>
+        <div class="gi-tier-card high"><h3>High GI (70–100)</h3><p>Rapid spike. Limit these foods.</p></div>
+      </div>
+    </div>
+  </section>
+  <div class="site-footer-bar">
+    <p>&copy; 2025 GI Smart — For educational purposes. Consult a healthcare professional for dietary advice.</p>
+  </div>
+</footer>
+<script src="/js/main.js"></script>
+
+<!-- ── AI Chatbot Widget ─────────────────────────────────────────────────── -->
+<% if (typeof currentUser !== 'undefined' && currentUser) { %>
+<div id="chatbot-widget">
+  <button id="chat-launcher" aria-label="Open GI Smart Assistant" title="Ask GI Smart AI">
+    <span id="chat-icon">💬</span>
+    <span id="chat-close-icon" style="display:none">✕</span>
+  </button>
+
+  <div id="chat-window" hidden>
+    <div id="chat-header">
+      <div id="chat-header-left">
+        <div id="chat-avatar">🥗</div>
+        <div>
+          <div id="chat-title">GI Smart Assistant</div>
+          <div id="chat-subtitle">Nutrition AI · Powered by Groq</div>
+        </div>
+      </div>
+      <div id="chat-header-actions">
+        <button type="button" id="chat-clear" title="Clear conversation" aria-label="Clear conversation">🗑</button>
+        <button type="button" id="chat-close-panel" title="Close chat" aria-label="Close chat">✕</button>
+      </div>
+    </div>
+
+    <div id="chat-messages">
+      <div class="chat-msg bot">
+        <div class="chat-bubble">
+          👋 Hi <%= currentUser.name.split(' ')[0] %>! I'm your GI Smart nutrition assistant. Ask me anything about the Glycemic Index diet, your meal plan, or specific foods!
+        </div>
+      </div>
+    </div>
+
+    <div id="chat-suggestions">
+      <button class="chat-suggestion">What is the Glycemic Index?</button>
+      <button class="chat-suggestion">Best low-GI breakfast foods?</button>
+      <button class="chat-suggestion">How to lower my GI intake?</button>
+    </div>
+
+    <form id="chat-form">
+      <input id="chat-input" type="text" placeholder="Ask about GI diet, foods, nutrition…" maxlength="500" autocomplete="off">
+      <button type="submit" id="chat-send">↑</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const launcher      = document.getElementById('chat-launcher');
+  const chatWindow    = document.getElementById('chat-window');
+  const chatIcon      = document.getElementById('chat-icon');
+  const chatCloseIcon = document.getElementById('chat-close-icon');
+  const messages      = document.getElementById('chat-messages');
+  const form          = document.getElementById('chat-form');
+  const input         = document.getElementById('chat-input');
+  const clearBtn      = document.getElementById('chat-clear');
+  const closePanelBtn = document.getElementById('chat-close-panel');
+  const suggestions   = document.querySelectorAll('.chat-suggestion');
+
+  let history = [];
+  let isOpen  = false;
+  let isThinking = false;
+
+  function openChat() {
+    isOpen = true;
+    chatWindow.removeAttribute('hidden');
+    chatIcon.style.display = 'none';
+    chatCloseIcon.style.display = 'inline';
+    input.focus();
+    scrollToBottom();
+  }
+
+  function closeChat() {
+    if (!isOpen) return;
+    isOpen = false;
+    chatWindow.setAttribute('hidden', '');
+    chatIcon.style.display = 'inline';
+    chatCloseIcon.style.display = 'none';
+  }
+
+  function toggleChat() {
+    if (isOpen) closeChat();
+    else openChat();
+  }
+
+  function scrollToBottom() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function appendMsg(text, role) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = text;
+    div.appendChild(bubble);
+    messages.appendChild(div);
+    scrollToBottom();
+    return bubble;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'chat-msg bot typing-indicator-wrap';
+    div.innerHTML = '<div class="chat-bubble typing-indicator"><span></span><span></span><span></span></div>';
+    div.id = 'typing-dots';
+    messages.appendChild(div);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing-dots');
+    if (t) t.remove();
+  }
+
+  async function sendMessage(text) {
+    if (!text.trim() || isThinking) return;
+    isThinking = true;
+    document.getElementById('chat-suggestions').style.display = 'none';
+    appendMsg(text, 'user');
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    showTyping();
+
+    try {
+      const res  = await fetch('/api/chatbot/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, history: history.slice(-10) }),
+      });
+      const data = await res.json();
+      removeTyping();
+      if (data.success) {
+        appendMsg(data.reply, 'bot');
+        history.push({ role: 'assistant', content: data.reply });
+      } else {
+        appendMsg('Sorry, I ran into an issue. Please try again.', 'bot');
+      }
+    } catch (e) {
+      removeTyping();
+      appendMsg('Network error — please check your connection.', 'bot');
+    } finally {
+      isThinking = false;
+    }
+  }
+
+  launcher.addEventListener('click', function (e) {
+    e.preventDefault();
+    toggleChat();
+  });
+  if (closePanelBtn) {
+    closePanelBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeChat();
+    });
+  }
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    sendMessage(input.value.trim());
+  });
+  suggestions.forEach(function(btn) {
+    btn.addEventListener('click', function() { sendMessage(btn.textContent); });
+  });
+  clearBtn.addEventListener('click', function() {
+    history = [];
+    messages.innerHTML = '';
+    appendMsg('Conversation cleared! How can I help you with your GI diet today?', 'bot');
+    document.getElementById('chat-suggestions').style.display = 'flex';
+  });
+})();
+</script>
+<% } %>
+
+</body>
+</html>

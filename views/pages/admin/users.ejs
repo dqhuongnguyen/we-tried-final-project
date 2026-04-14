@@ -1,0 +1,98 @@
+<%- include('../../partials/header') %>
+
+<div class="page-header">
+  <div>
+    <h1>👥 Manage Users</h1>
+    <p><%= total %> user<%= total !== 1 ? 's' : '' %> found</p>
+  </div>
+  <a href="/admin" class="btn btn-secondary">← Admin Panel</a>
+</div>
+
+<!-- Search & Filter -->
+<form method="GET" action="/admin/users" class="filter-bar">
+  <input type="text" name="search" value="<%= query.search || '' %>" placeholder="Search name or email…" class="form-control" style="flex:1;min-width:200px">
+  <select name="role" class="form-control" style="width:140px">
+    <option value="all" <%= (!query.role || query.role==='all') ? 'selected' : '' %>>All Roles</option>
+    <option value="user"  <%= query.role==='user'  ? 'selected' : '' %>>User</option>
+    <option value="admin" <%= query.role==='admin' ? 'selected' : '' %>>Admin</option>
+  </select>
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="/admin/users" class="btn btn-secondary">Reset</a>
+</form>
+
+<div class="card" style="margin-top:1rem">
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Email</th><th>Role</th><th>Goal</th><th>BMI</th><th>Joined</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td><strong><%= u.name %></strong></td>
+          <td><%= u.email %></td>
+          <td>
+            <button
+              class="role-pill <%= u.role %> role-toggle-btn"
+              data-id="<%= u._id %>"
+              data-role="<%= u.role %>"
+              <% if (u._id.toString() === currentUser._id.toString()) { %>disabled title="Cannot change your own role"<% } %>
+            ><%= u.role %></button>
+          </td>
+          <td><%= u.goal || '—' %></td>
+          <td>
+            <% if (u.profile?.bmi) { %>
+              <span class="bmi-pill bmi-<%= u.profile.bmi_category.toLowerCase() %>">
+                <%= u.profile.bmi %> · <%= u.profile.bmi_category %>
+              </span>
+            <% } else { %>—<% } %>
+          </td>
+          <td><%= new Date(u.createdAt).toLocaleDateString() %></td>
+          <td>
+            <% if (u._id.toString() !== currentUser._id.toString()) { %>
+            <form method="POST" action="/admin/users/<%= u._id %>?_method=DELETE"
+                  onsubmit="return confirm('Delete <%= u.name %>? This cannot be undone.')">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+            <% } else { %>
+              <span style="font-size:.75rem;color:var(--ink2)">You</span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (!users.length) { %>
+        <tr><td colspan="7" style="text-align:center;color:var(--ink2);padding:2rem">No users found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (pages > 1) { %>
+  <div class="pagination">
+    <% for(let i=1; i<=pages; i++) { %>
+      <a href="/admin/users?<%= new URLSearchParams({...query, page:i}).toString() %>"
+         class="page-btn <%= page===i ? 'active' : '' %>"><%= i %></a>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+
+<script>
+document.querySelectorAll('.role-toggle-btn:not([disabled])').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    const r = await fetch(`/admin/users/${id}/role`, { method:'POST' });
+    const d = await r.json();
+    if (d.success) {
+      btn.textContent = d.role;
+      btn.dataset.role = d.role;
+      btn.className = `role-pill ${d.role} role-toggle-btn`;
+    }
+  });
+});
+</script>
+
+<%- include('../../partials/footer') %>

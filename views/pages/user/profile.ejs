@@ -1,0 +1,125 @@
+<%- include('../../partials/header') %>
+<div class="page-header">
+  <h1>My Health Profile</h1>
+  <p>Fill in your details to get your BMI and a personalised meal plan.</p>
+</div>
+
+<div class="profile-layout">
+  <form method="POST" action="/user/profile" class="card profile-form">
+    <h2>Personal Details</h2>
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" name="name" value="<%= user.name %>" class="form-control">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Age</label>
+        <input type="number" name="age" min="10" max="110" value="<%= user.profile?.age || '' %>" required class="form-control" placeholder="e.g. 28">
+      </div>
+      <div class="form-group">
+        <label>Gender</label>
+        <select name="gender" required class="form-control">
+          <option value="">Select...</option>
+          <% [['male','Male'],['female','Female'],['other','Other']].forEach(([v,l]) => { %>
+            <option value="<%= v %>" <%= user.profile?.gender===v?'selected':'' %>><%= l %></option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Weight (kg)</label>
+        <input type="number" name="weight_kg" min="20" max="400" step="0.1" value="<%= user.profile?.weight_kg || '' %>" required class="form-control" placeholder="e.g. 72">
+      </div>
+      <div class="form-group">
+        <label>Height (cm)</label>
+        <input type="number" name="height_cm" min="50" max="280" step="0.1" value="<%= user.profile?.height_cm || '' %>" required class="form-control" placeholder="e.g. 170">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Activity Level</label>
+      <select name="activity" class="form-control">
+        <% [['sedentary','Sedentary (desk job, no exercise)'],['light','Light (1–2 days/week)'],['moderate','Moderate (3–5 days/week)'],['active','Active (6–7 days/week)'],['very_active','Very Active (athlete)']].forEach(([v,l]) => { %>
+          <option value="<%= v %>" <%= (user.profile?.activity||'moderate')===v?'selected':'' %>><%= l %></option>
+        <% }) %>
+      </select>
+    </div>
+    <h2 style="margin-top:1.5rem">My Health Goal</h2>
+    <div class="goal-grid">
+      <% [['General Health','🌿'],['Weight Loss','⚖️'],['Blood Sugar Control','🩸'],['Sports Performance','💪']].forEach(([v,e]) => { %>
+        <label class="goal-card <%= (user.profile?.goal||user.goal)===v?'selected':'' %>">
+          <input type="radio" name="goal" value="<%= v %>" <%= (user.profile?.goal||user.goal)===v?'checked':'' %>>
+          <span class="goal-emoji"><%= e %></span>
+          <span class="goal-label"><%= v %></span>
+        </label>
+      <% }) %>
+    </div>
+
+    <div class="weight-loss-fields" id="weight-loss-fields" style="display:none;margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid rgba(26,26,20,.08)">
+      <h3 class="wl-title">Weight loss target</h3>
+      <p class="wl-lead">We estimate calories using the energy in body fat (~7,700 kcal per kg) spread over your timeline, with a safe cap on daily deficit.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="target_weight_kg">Goal weight (kg)</label>
+          <input type="number" name="target_weight_kg" id="target_weight_kg" min="30" max="300" step="0.1"
+                 value="<%= user.profile?.target_weight_kg != null ? user.profile.target_weight_kg : '' %>"
+                 class="form-control" placeholder="e.g. 65" aria-describedby="wl-goal-help">
+        </div>
+        <div class="form-group">
+          <label for="weight_loss_weeks">Reach it in (weeks)</label>
+          <input type="number" name="weight_loss_weeks" id="weight_loss_weeks" min="2" max="104" step="1"
+                 value="<%= user.profile?.weight_loss_weeks != null ? user.profile.weight_loss_weeks : '' %>"
+                 class="form-control" placeholder="e.g. 12">
+        </div>
+      </div>
+      <p class="wl-hint" id="wl-goal-help">Between 2 and 104 weeks. Goal weight must be below your current weight and keep BMI at or above 18.5.</p>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full" style="margin-top:1.5rem">Save & Generate Meal Plan →</button>
+  </form>
+
+  <% if (user.profile?.bmi) { %>
+  <div class="bmi-card card">
+    <h2>Your BMI</h2>
+    <div class="bmi-score-big bmi-color-<%= user.profile.bmi_category.toLowerCase() %>"><%= user.profile.bmi %></div>
+    <div class="bmi-cat bmi-color-<%= user.profile.bmi_category.toLowerCase() %>"><%= user.profile.bmi_category %></div>
+    <div class="bmi-scale">
+      <div class="bmi-range r-under">Under<br><strong>18.5</strong></div>
+      <div class="bmi-range r-normal">Normal<br><strong>18.5–25</strong></div>
+      <div class="bmi-range r-over">Over<br><strong>25–30</strong></div>
+      <div class="bmi-range r-obese">Obese<br><strong>30+</strong></div>
+    </div>
+    <% if (user.profile.daily_calories) { %>
+    <div class="calorie-box">
+      <div class="cal-num"><%= user.profile.daily_calories %></div>
+      <div class="cal-label">Recommended Daily Calories</div>
+    </div>
+    <% } %>
+    <% if (user.profile?.goal === 'Weight Loss' && user.profile.target_weight_kg != null && user.profile.weight_loss_weeks) { %>
+    <p class="wl-summary">Lose <strong><%= (user.profile.weight_kg - user.profile.target_weight_kg).toFixed(1) %> kg</strong> in <strong><%= user.profile.weight_loss_weeks %></strong> weeks → goal <strong><%= user.profile.target_weight_kg %> kg</strong>.</p>
+    <% } %>
+    <a href="/dashboard" class="btn btn-primary btn-full" style="margin-top:1rem">View My Meal Plan →</a>
+  </div>
+  <% } %>
+</div>
+<%- include('../../partials/health-disclaimer') %>
+<script>
+(function () {
+  var fields = document.getElementById('weight-loss-fields');
+  var tw = document.getElementById('target_weight_kg');
+  var wk = document.getElementById('weight_loss_weeks');
+  if (!fields) return;
+  function sync() {
+    var checked = document.querySelector('input[name="goal"]:checked');
+    var show = checked && checked.value === 'Weight Loss';
+    fields.style.display = show ? 'block' : 'none';
+    if (tw) tw.required = !!show;
+    if (wk) wk.required = !!show;
+  }
+  document.querySelectorAll('input[name="goal"]').forEach(function (r) {
+    r.addEventListener('change', sync);
+  });
+  sync();
+})();
+</script>
+<%- include('../../partials/footer') %>

@@ -1,0 +1,136 @@
+<%- include('../partials/header') %>
+
+<div class="page-header meal-plan-header">
+  <div class="mph-left">
+    <span class="section-tag">Weekly plan</span>
+    <h1>🥗 My Meal Plan</h1>
+    <p>One week of meals personalised to your BMI. A <strong>new plan is generated automatically every 7 days</strong> when you open the app (dashboard or this page).</p>
+  </div>
+  <% if (hasProfile) { %>
+  <div class="mph-right">
+    <a href="/tracking" class="btn btn-primary">📅 Track Today</a>
+    <a href="/user/profile" class="btn btn-secondary">Edit Profile</a>
+  </div>
+  <% } %>
+</div>
+
+<% if (!hasProfile) { %>
+  <div class="no-profile-card" style="margin-top:2rem">
+    <div style="font-size:3rem;margin-bottom:1rem">📋</div>
+    <h2>Set Up Your Health Profile First</h2>
+    <p>We need your weight, height, age and goal to calculate your BMI and build a plan.</p>
+    <a href="/user/profile" class="btn btn-primary" style="margin-top:1rem">Complete Profile →</a>
+  </div>
+
+<% } else { %>
+
+  <!-- BMI Banner -->
+  <div class="bmi-overview-banner bmi-banner-<%= user.profile.bmi_category.toLowerCase() %>">
+    <div class="bob-left">
+      <span class="bob-icon"><%= rule.icon %></span>
+      <div>
+        <div class="bob-category"><%= user.profile.bmi_category %></div>
+        <div class="bob-bmi">BMI <%= user.profile.bmi %></div>
+      </div>
+    </div>
+    <div class="bob-center">
+      <div class="bob-focus"><%= rule.focus %></div>
+      <div class="bob-goal">Goal: <strong><%= rule.goal %></strong> · Max GI: <strong><%= rule.maxGI %></strong></div>
+    </div>
+    <div class="bob-right">
+      <div class="bob-stat"><strong><%= user.profile.daily_calories || '—' %></strong><span>kcal/day</span></div>
+      <div class="bob-stat"><strong>7</strong><span>day rotation</span></div>
+    </div>
+  </div>
+
+  <!-- 7-day quick jump (next week) -->
+  <div class="card mp-calendar-card">
+    <h3 style="font-family:'Playfair Display',serif;margin-bottom:.3rem">📅 Next 7 days</h3>
+    <p style="font-size:.8rem;color:var(--ink2);margin-bottom:1rem">Jump to the menu for that weekday.</p>
+    <div class="month-calendar-grid week-calendar-grid">
+      <% calendar.forEach((day, i) => { %>
+        <a href="#day-<%= day.dayName %>" class="cal-cell <%= day.date.toDateString() === new Date().toDateString() ? 'cal-today' : '' %>">
+          <div class="cal-date"><%= day.date.getDate() %></div>
+          <div class="cal-day"><%= day.dayName.slice(0,3) %></div>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- 7-Day Rotating Plan -->
+  <% if (weeklyPlan && weeklyPlan.days) { %>
+    <% if (weeklyPlan.summary) { %>
+      <div class="mp-summary-box">
+        <strong>🤖 AI Summary:</strong> <%= weeklyPlan.summary %>
+        <% if (weeklyPlan.generatedAt) { %>
+          <span class="mp-timestamp">Generated <%= new Date(weeklyPlan.generatedAt).toLocaleDateString() %></span>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% const mealMeta = {
+      Breakfast: { emoji:'🌅', pct:'25%', colour:'breakfast' },
+      Lunch:     { emoji:'☀️', pct:'35%', colour:'lunch' },
+      Dinner:    { emoji:'🌙', pct:'30%', colour:'dinner' },
+      Snacks:    { emoji:'🍎', pct:'10%', colour:'snack' },
+    }; %>
+
+    <% DAYS.forEach(dayName => { %>
+      <% const dayPlan = weeklyPlan.days[dayName]; if (!dayPlan) return; %>
+      <div class="mp-day-section" id="day-<%= dayName %>">
+        <div class="mp-day-header">
+          <h2 style="font-family:'Playfair Display',serif"><%= dayName %></h2>
+          <a href="/tracking" class="btn btn-sm btn-secondary">✅ Mark as followed</a>
+        </div>
+
+        <div class="mp-meals-grid">
+          <% Object.entries(dayPlan).forEach(([mealName, meal]) => {
+               const meta = mealMeta[mealName] || { emoji:'🍽️', pct:'—', colour:'default' };
+               const kcal = user.profile.daily_calories ? Math.round(user.profile.daily_calories * parseFloat(meta.pct) / 100) : null;
+          %>
+            <div class="mp-meal-card mp-meal-<%= meta.colour %>">
+              <div class="mp-meal-head">
+                <div class="mp-meal-emoji"><%= meta.emoji %></div>
+                <div>
+                  <div class="mp-meal-name"><%= mealName %></div>
+                  <div class="mp-meal-kcal"><%= meta.pct %><% if(kcal){ %> · ~<%= kcal %> kcal<% } %></div>
+                </div>
+              </div>
+
+              <div class="mp-food-list">
+                <% if (meal.foods && meal.foods.length) { %>
+                  <% meal.foods.forEach(food => { %>
+                    <div class="mp-food-item">
+                      <div class="mp-food-top">
+                        <a href="/foods/<%= food._id %>" class="mp-food-name"><%= food.name %></a>
+                        <span class="gi-badge <%= food.gi_tier ? food.gi_tier.toLowerCase() : '' %>">GI <%= food.gi_value %></span>
+                      </div>
+                      <div class="mp-food-meta">
+                        <%= food.category %>
+                        <% if (food.calories_per_100g != null) { %> · <%= food.calories_per_100g %> kcal<% } %>
+                        <% if (food.protein_g != null) { %> · <%= food.protein_g %>g protein<% } %>
+                        <% if (food.fibre_g != null) { %> · <%= food.fibre_g %>g fibre<% } %>
+                      </div>
+                      <% if (food.reason) { %>
+                        <div class="mp-food-reason">💡 <%= food.reason %></div>
+                      <% } %>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <p class="no-foods-msg">No foods for this meal.</p>
+                <% } %>
+              </div>
+
+              <% if (meal.tip) { %>
+                <div class="mp-tip">💡 <strong>Tip:</strong> <%= meal.tip %></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+  <% } %>
+
+<% } %>
+
+<%- include('../partials/footer') %>

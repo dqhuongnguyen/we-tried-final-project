@@ -1,0 +1,86 @@
+<%- include('../../partials/header') %>
+<div class="auth-page">
+  <div class="auth-card">
+    <a href="/" class="auth-brand">GI<span>Smart</span></a>
+    <h1>Welcome Back</h1>
+    <p class="auth-sub">Sign in to your GI Smart account</p>
+
+    <form method="POST" action="/auth/login" class="auth-form" id="loginForm" novalidate>
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" required class="form-control" placeholder="jane@example.com" autofocus autocomplete="email">
+        <span class="field-error" id="email-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="password" name="password" required class="form-control" placeholder="••••••••" autocomplete="current-password">
+          <button type="button" class="pw-toggle" aria-label="Show/hide password">👁</button>
+        </div>
+        <span class="field-error" id="pw-err"></span>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Sign In →</button>
+    </form>
+    <p class="auth-switch">New here? <a href="/auth/register">Create a free account</a></p>
+  </div>
+
+  <div class="auth-side">
+    <h2>Your health,<br>personalised.</h2>
+    <p>Log in to access your dashboard, personalised meal plan, and daily tracking.</p>
+    <div class="auth-side-stats">
+      <div class="as-stat"><div class="as-num">143+</div><div class="as-label">Foods Indexed</div></div>
+      <div class="as-stat"><div class="as-num">3</div><div class="as-label">GI Tiers</div></div>
+      <div class="as-stat"><div class="as-num">4</div><div class="as-label">Meal Plans</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const form   = document.getElementById('loginForm');
+  const email  = document.getElementById('email');
+  const pw     = document.getElementById('password');
+  const pwWrap = document.querySelector('.pw-wrap');
+
+  // Toggle password visibility
+  document.querySelector('.pw-toggle').addEventListener('click', function() {
+    const type = pw.type === 'password' ? 'text' : 'password';
+    pw.type = type;
+    this.textContent = type === 'password' ? '👁' : '🙈';
+  });
+
+  function showErr(id, msg) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+  }
+
+  function validate() {
+    let ok = true;
+    if (!email.value.trim() || !/^\S+@\S+\.\S+$/.test(email.value)) {
+      showErr('email-err', 'Please enter a valid email address.');
+      email.classList.add('input-error');
+      ok = false;
+    } else {
+      showErr('email-err', '');
+      email.classList.remove('input-error');
+    }
+    if (pw.value.length < 1) {
+      showErr('pw-err', 'Password is required.');
+      pw.classList.add('input-error');
+      ok = false;
+    } else {
+      showErr('pw-err', '');
+      pw.classList.remove('input-error');
+    }
+    return ok;
+  }
+
+  form.addEventListener('submit', function(e) {
+    if (!validate()) e.preventDefault();
+  });
+  [email, pw].forEach(function(el) {
+    el.addEventListener('input', validate);
+  });
+})();
+</script>
+<%- include('../../partials/footer') %>

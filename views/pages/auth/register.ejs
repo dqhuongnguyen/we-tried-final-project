@@ -1,0 +1,123 @@
+<%- include('../../partials/header') %>
+<div class="auth-page">
+  <div class="auth-card">
+    <a href="/" class="auth-brand">GI<span>Smart</span></a>
+    <h1>Create Account</h1>
+    <p class="auth-sub">Start your personalised GI diet journey today</p>
+
+    <form method="POST" action="/auth/register" class="auth-form" id="regForm" novalidate>
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required class="form-control" placeholder="Jane Smith" autofocus autocomplete="name" minlength="2" maxlength="60">
+        <span class="field-error" id="name-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" required class="form-control" placeholder="jane@example.com" autocomplete="email">
+        <span class="field-error" id="email-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="goal">Goal</label>
+        <select id="goal" name="goal" class="form-control">
+          <option value="General Health">🌿 General Health</option>
+          <option value="Weight Loss">⚖️ Weight Loss</option>
+          <option value="Blood Sugar Control">🩸 Blood Sugar Control</option>
+          <option value="Sports Performance">💪 Sports Performance</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="password">Password <span class="label-hint">(min. 6 characters)</span></label>
+        <div class="pw-wrap">
+          <input type="password" id="password" name="password" required minlength="6" class="form-control" placeholder="••••••••" autocomplete="new-password">
+          <button type="button" class="pw-toggle" aria-label="Show/hide password">👁</button>
+        </div>
+        <div class="pw-strength-bar"><div id="pw-strength-fill"></div></div>
+        <span class="field-error" id="pw-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="confirm">Confirm Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="confirm" name="confirm" required class="form-control" placeholder="••••••••" autocomplete="new-password">
+          <button type="button" class="pw-toggle2" aria-label="Show/hide password">👁</button>
+        </div>
+        <span class="field-error" id="confirm-err"></span>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Create Account →</button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="/auth/login">Sign in</a></p>
+  </div>
+
+  <div class="auth-side">
+    <h2>Why GI Smart?</h2>
+    <ul class="auth-benefits">
+      <li><span class="benefit-icon">📊</span><div><strong>BMI Calculator</strong><div>Enter your measurements and get an instant BMI analysis</div></div></li>
+      <li><span class="benefit-icon">🥗</span><div><strong>Personalised Meal Plans</strong><div>AI plans built from real food data, matched to your BMI and goal</div></div></li>
+      <li><span class="benefit-icon">🤖</span><div><strong>AI Nutrition Assistant</strong><div>Chat with your personal GI diet coach anytime</div></div></li>
+      <li><span class="benefit-icon">📅</span><div><strong>Daily tracking</strong><div>Log meals and water — we derive calories, GI, and an on-target score from your goals</div></div></li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function() {
+  const form    = document.getElementById('regForm');
+  const nameEl  = document.getElementById('name');
+  const emailEl = document.getElementById('email');
+  const pwEl    = document.getElementById('password');
+  const conEl   = document.getElementById('confirm');
+  const fill    = document.getElementById('pw-strength-fill');
+
+  function toggle(inputEl, btnClass) {
+    document.querySelector('.' + btnClass).addEventListener('click', function() {
+      inputEl.type = inputEl.type === 'password' ? 'text' : 'password';
+      this.textContent = inputEl.type === 'password' ? '👁' : '🙈';
+    });
+  }
+  toggle(pwEl, 'pw-toggle');
+  toggle(conEl, 'pw-toggle2');
+
+  function showErr(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
+    const input = document.querySelector('[id="' + id.replace('-err','') + '"]');
+    if (input) input.classList.toggle('input-error', !!msg);
+  }
+
+  function pwStrength(val) {
+    let score = 0;
+    if (val.length >= 6)  score++;
+    if (val.length >= 10) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const pct = (score / 5) * 100;
+    fill.style.width = pct + '%';
+    fill.style.background = score <= 1 ? 'var(--high)' : score <= 3 ? 'var(--medium)' : 'var(--low)';
+  }
+
+  pwEl.addEventListener('input', function() { pwStrength(pwEl.value); });
+
+  function validate() {
+    let ok = true;
+    if (!nameEl.value.trim() || nameEl.value.trim().length < 2) {
+      showErr('name-err', 'Name must be at least 2 characters.'); ok = false;
+    } else { showErr('name-err', ''); }
+    if (!emailEl.value.trim() || !/^\S+@\S+\.\S+$/.test(emailEl.value)) {
+      showErr('email-err', 'Please enter a valid email address.'); ok = false;
+    } else { showErr('email-err', ''); }
+    if (pwEl.value.length < 6) {
+      showErr('pw-err', 'Password must be at least 6 characters.'); ok = false;
+    } else { showErr('pw-err', ''); }
+    if (conEl.value !== pwEl.value) {
+      showErr('confirm-err', 'Passwords do not match.'); ok = false;
+    } else { showErr('confirm-err', ''); }
+    return ok;
+  }
+
+  form.addEventListener('submit', function(e) { if (!validate()) e.preventDefault(); });
+  [nameEl, emailEl, pwEl, conEl].forEach(function(el) { el.addEventListener('blur', validate); });
+})();
+</script>
+<%- include('../../partials/footer') %>

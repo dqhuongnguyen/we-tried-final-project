@@ -1,0 +1,86 @@
+<%- include('../partials/header') %>
+<div class="detail-page">
+  <div class="detail-header">
+    <div class="detail-badges">
+      <span class="gi-badge <%= food.gi_tier ? food.gi_tier.toLowerCase() : '' %> large"><%= food.gi_tier || 'Unknown' %> GI</span>
+    </div>
+    <h1><%= food.name %></h1>
+    <p class="food-category"><%= food.category %></p>
+  </div>
+
+  <!-- GI Score -->
+  <div class="gi-score-big">
+    <div class="score-num"><%= food.gi_value %></div>
+    <div class="score-label">Glycaemic Index Score</div>
+    <div class="gi-bar-bg" style="margin-top:.8rem">
+      <div class="gi-bar-fill <%= food.gi_tier ? food.gi_tier.toLowerCase() : '' %>"
+           style="width:<%= Math.min(100, food.gi_value || 0) %>%"></div>
+    </div>
+    <div class="gi-tier-legend">
+      <span class="gi-badge low">Low ≤ 55</span>
+      <span class="gi-badge medium">Medium 56–69</span>
+      <span class="gi-badge high">High ≥ 70</span>
+    </div>
+  </div>
+
+  <!-- Nutrition Values — always show, use — for missing -->
+  <div class="nutrition-grid">
+    <div class="nutrient <%= food.calories_per_100g ? '' : 'nutrient-empty' %>">
+      <div class="n-val"><%= food.calories_per_100g != null ? food.calories_per_100g : '—' %></div>
+      <div class="n-label">kcal / 100g</div>
+    </div>
+    <div class="nutrient <%= food.carbs_g != null ? '' : 'nutrient-empty' %>">
+      <div class="n-val"><%= food.carbs_g != null ? food.carbs_g + 'g' : '—' %></div>
+      <div class="n-label">Carbs</div>
+    </div>
+    <div class="nutrient <%= food.fibre_g != null ? '' : 'nutrient-empty' %>">
+      <div class="n-val"><%= food.fibre_g != null ? food.fibre_g + 'g' : '—' %></div>
+      <div class="n-label">Fibre</div>
+    </div>
+    <div class="nutrient <%= food.protein_g != null ? '' : 'nutrient-empty' %>">
+      <div class="n-val"><%= food.protein_g != null ? food.protein_g + 'g' : '—' %></div>
+      <div class="n-label">Protein</div>
+    </div>
+    <div class="nutrient <%= food.fat_g != null ? '' : 'nutrient-empty' %>">
+      <div class="n-val"><%= food.fat_g != null ? food.fat_g + 'g' : '—' %></div>
+      <div class="n-label">Fat</div>
+    </div>
+    <% if (food.glycemic_load != null || (food.gi_value && food.carbs_g)) { %>
+    <div class="nutrient">
+      <div class="n-val"><%= food.glycemic_load != null ? food.glycemic_load : Math.round((food.gi_value * food.carbs_g) / 100) %></div>
+      <div class="n-label">GL Score</div>
+    </div>
+    <% } %>
+  </div>
+
+  <% if (food.serving_size_g && food.serving_size_g !== 100) { %>
+    <p style="font-size:.78rem;color:var(--ink2);text-align:center;margin-top:.5rem">
+      Typical serving: <strong><%= food.serving_size_g %>g</strong>
+    </p>
+  <% } %>
+
+  <% if (food.notes) { %>
+    <div class="detail-notes"><%= food.notes %></div>
+  <% } %>
+
+  <% if (food.tags && food.tags.length) { %>
+    <div class="food-tags">
+      <% food.tags.forEach(t => { %><span class="food-tag"><%= t %></span><% }) %>
+    </div>
+  <% } %>
+
+  <div class="detail-actions">
+    <% if (currentUser?.role === 'admin') { %>
+      <a href="/foods/<%= food._id %>/edit" class="btn btn-primary">✏️ Edit</a>
+      <form method="POST" action="/foods/<%= food._id %>?_method=DELETE"
+            style="display:inline" onsubmit="return confirm('Delete <%= food.name %>?')">
+        <button class="btn btn-danger">🗑 Delete</button>
+      </form>
+    <% } %>
+    <a href="/foods" class="btn btn-secondary">← Back to Foods</a>
+    <% if (currentUser && currentUser.profile?.bmi) { %>
+      <a href="/meal-plan" class="btn btn-secondary">🥗 My Meal Plan</a>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/footer') %>

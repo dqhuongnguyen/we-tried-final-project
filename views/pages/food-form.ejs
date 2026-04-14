@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+<div class="form-page">
+  <h1><%= food ? 'Edit Food' : 'Add New Food' %></h1>
+  <% if (typeof error !== 'undefined') { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="POST" action="<%= food ? '/foods/' + food._id + '?_method=PUT' : '/foods' %>">
+    <div class="form-group">
+      <label>Food Name *</label>
+      <input type="text" name="name" value="<%= food ? food.name : '' %>" required class="form-control">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Category *</label>
+        <select name="category" required class="form-control">
+          <% ['Grains','Legumes','Fruit','Dairy','Protein','Vegetables','Nuts & Seeds','Drinks','Other'].forEach(cat => { %>
+          <option value="<%= cat %>" <%= food && food.category === cat ? 'selected' : '' %>><%= cat %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>GI Value (0–110) *</label>
+        <input type="number" name="gi_value" value="<%= food ? food.gi_value : '' %>" min="0" max="110" required class="form-control">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Calories (per 100g)</label><input type="number" name="calories_per_100g" value="<%= food ? food.calories_per_100g : '' %>" class="form-control"></div>
+      <div class="form-group"><label>Carbs (g)</label><input type="number" name="carbs_g" value="<%= food ? food.carbs_g : '' %>" step="0.1" class="form-control"></div>
+      <div class="form-group"><label>Fibre (g)</label><input type="number" name="fibre_g" value="<%= food ? food.fibre_g : '' %>" step="0.1" class="form-control"></div>
+      <div class="form-group"><label>Protein (g)</label><input type="number" name="protein_g" value="<%= food ? food.protein_g : '' %>" step="0.1" class="form-control"></div>
+      <div class="form-group"><label>Fat (g)</label><input type="number" name="fat_g" value="<%= food ? food.fat_g : '' %>" step="0.1" class="form-control"></div>
+    </div>
+    <div class="form-group"><label>Tags (comma separated)</label><input type="text" name="tags" value="<%= food && food.tags ? food.tags.join(', ') : '' %>" placeholder="e.g. breakfast, high-fibre" class="form-control"></div>
+    <div class="form-group"><label>Notes</label><textarea name="notes" rows="3" class="form-control"><%= food ? food.notes : '' %></textarea></div>
+    <label class="checkbox-label"><input type="checkbox" name="is_featured" value="true" <%= food && food.is_featured ? 'checked' : '' %>> Feature on Homepage</label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary"><%= food ? 'Update Food' : 'Add Food' %></button>
+      <a href="/foods" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

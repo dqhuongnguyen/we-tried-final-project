@@ -1,0 +1,118 @@
+<%- include('../../partials/header') %>
+<div class="dashboard">
+
+  <!-- Welcome bar -->
+  <div class="dash-welcome">
+    <div>
+      <h1>👋 Welcome, <%= currentUser?.name ? currentUser.name.split(' ')[0] : 'User' %></h1>
+
+      <% if (currentUser?.profile?.bmi) { %>
+        <p>
+          BMI: <strong><%= currentUser.profile.bmi %></strong>
+
+          <span class="bmi-pill bmi-<%= currentUser.profile?.bmi_category ? currentUser.profile.bmi_category.toLowerCase() : '' %>">
+            <%= currentUser.profile?.bmi_category || '' %>
+          </span>
+
+          · Goal: <strong><%= currentUser.profile?.goal || currentUser?.goal || '' %></strong>
+
+          <% if (currentUser.profile?.daily_calories) { %>
+            · 🔥 <strong><%= currentUser.profile.daily_calories %> kcal/day</strong>
+          <% } %>
+        </p>
+      <% } else { %>
+        <p>
+          👆 Set up your 
+          <a href="/user/profile" style="color:#f5f0e8;text-decoration:underline">
+            health profile
+          </a> 
+          to unlock your personalised meal plan.
+        </p>
+      <% } %>
+    </div>
+
+    <div class="dash-actions">
+      <a href="/user/profile" class="btn btn-secondary">Edit Profile</a>
+    </div>
+  </div>
+
+  <% if (!hasProfile) { %>
+    <!-- No profile prompt -->
+    <div class="no-profile-card">
+      <div style="font-size:3rem;margin-bottom:1rem">📋</div>
+      <h2>Complete Your Health Profile</h2>
+      <p>
+        Enter your age, weight, height and goal. We'll calculate your BMI and build a personalised meal plan from our food database.
+      </p>
+      <a href="/user/profile" class="btn btn-primary">Set Up Profile →</a>
+    </div>
+
+  <% } else { %>
+    <!-- Meal Plan -->
+    <div class="meal-plan-section">
+      <div class="section-header-row">
+        <div>
+          <span class="section-tag">
+            AI-Personalised for <%= currentUser?.profile?.bmi_category || '' %> BMI
+          </span>
+          <h2>Today's Meal Plan</h2>
+
+          <% if (mealPlan?.summary) { %>
+            <p class="plan-focus"><%= mealPlan.summary %></p>
+          <% } %>
+        </div>
+        <a href="/meal-plan" class="btn btn-secondary">🥗 View full weekly plan</a>
+      </div>
+
+      <div class="meals-grid">
+        <% if (mealPlan?.meals) { %>
+          <% Object.entries(mealPlan.meals).forEach(([mealName, meal]) => { %>
+            <div class="meal-card-dash">
+
+              <div class="meal-header">
+                <span class="meal-emoji">
+                  <%= mealName === 'Breakfast' ? '🌅' : mealName === 'Lunch' ? '☀️' : mealName === 'Dinner' ? '🌙' : '🍎' %>
+                </span>
+                <span class="meal-label"><%= mealName %></span>
+              </div>
+
+              <div class="meal-foods">
+                <% if (meal?.foods && meal.foods.length) { %>
+                  <% meal.foods.forEach(food => { %>
+                    <div class="meal-food-row">
+                      <div>
+                        <div class="mfr-name"><%= food?.name || '' %></div>
+                        <div class="mfr-meta">
+                          <%= food?.category || '' %> · GI <%= food?.gi_value || '' %>
+                        </div>
+
+                        <% if (food?.reason) { %>
+                          <div class="mfr-reason">💡 <%= food.reason %></div>
+                        <% } %>
+                      </div>
+
+                      <span class="gi-badge <%= food?.gi_tier ? food.gi_tier.toLowerCase() : '' %>">
+                        <%= food?.gi_tier || '' %>
+                      </span>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <p class="no-foods-msg">
+                    No matching foods. <a href="/foods/new">Add more?</a>
+                  </p>
+                <% } %>
+              </div>
+
+              <% if (meal?.tip) { %>
+                <div class="meal-tip">💡 <%= meal.tip %></div>
+              <% } %>
+
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
+
+</div>
+<%- include('../../partials/footer') %>
