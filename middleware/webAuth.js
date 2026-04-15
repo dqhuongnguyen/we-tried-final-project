@@ -2,9 +2,22 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { jwt: jwtSecret } = require("../config/secrets");
 
-/** True if this user document has admin privileges (navbar + redirects). */
+/**
+ * True if this user has admin privileges (navbar + redirects + requireAdmin).
+ * 1) `role: "admin"` on the user document (preferred), or
+ * 2) `ADMIN_EMAILS` env (comma-separated, case-insensitive) — useful when DB role is hard to update in production.
+ */
 function userIsAdmin(user) {
-  return !!(user && String(user.role || "").toLowerCase() === "admin");
+  if (!user) return false;
+  if (String(user.role || "").toLowerCase() === "admin") return true;
+  const raw = process.env.ADMIN_EMAILS || "";
+  const email = (user.email || "").trim().toLowerCase();
+  if (!email) return false;
+  const allowed = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.length > 0 && allowed.includes(email);
 }
 
 /**
@@ -92,7 +105,8 @@ function redirectAdminFromConsumer(req, res, next) {
   if (!req.session?.token || !res.locals.currentUser) return next();
   if (!res.locals.isAdmin) return next();
 
-  const path = req.path || "";
+  // Pathname from full URL — more reliable than req.path behind some proxies (e.g. Render)
+  const path = (req.originalUrl || "").split("?")[0] || req.path || "";
   const method = req.method || "GET";
 
   if (path.startsWith("/admin")) return next();

@@ -8,11 +8,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
+<% 
+  // Server sets isAdmin in setLocals; fallback to role so DB admin always gets admin nav if locals ever desync
+  const __adminNav = (typeof isAdmin !== 'undefined' && isAdmin) || (currentUser && String(currentUser.role || '').toLowerCase() === 'admin');
+%>
 <nav class="navbar" aria-label="Main navigation">
-  <a href="<%= isAdmin ? '/admin' : '/' %>" class="nav-brand">GI<span>Smart</span></a>
+  <a href="<%= __adminNav ? '/admin' : '/' %>" class="nav-brand">GI<span>Smart</span></a>
 
   <ul class="nav-links">
-    <% if (isAdmin) { %>
+    <% if (__adminNav) { %>
     <li><a href="/admin" class="nav-link-admin">Admin panel</a></li>
     <li class="nav-user-block">
       <details class="nav-user-dropdown">
