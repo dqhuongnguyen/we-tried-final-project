@@ -78,7 +78,7 @@ exports.login = async (req, res) => {
         return res.redirect("/auth/login");
       }
       req.flash("success", `Welcome back, ${user.name}!`);
-      res.redirect("/dashboard");
+      res.redirect(user.role === "admin" ? "/admin" : "/dashboard");
     });
   } catch (err) {
     req.flash("error", err.message);

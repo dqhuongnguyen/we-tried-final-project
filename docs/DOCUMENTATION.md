@@ -1,125 +1,565 @@
-# GI Smart — Technical Documentation
+# GI Smart — Full Project Documentation
 
-**Product:** GI Smart — glycemic-aware nutrition and tracking  
-**Version:** 4.x  
-**Stack:** Node.js · Express · EJS · MongoDB (Mongoose) · JWT (in server session) · Groq (Llama) for AI features  
-
-This document describes the **current** codebase. For deployment, performance tuning, and security testing notes, see [`PHASE4_DOCUMENTATION.md`](./PHASE4_DOCUMENTATION.md).
-
----
-
-## 1. Architecture
-
-| Layer | Role |
-|--------|------|
-| `app.js` | Express app: security middleware, sessions, JSON/urlencoded limits, static files, route mounting |
-| `routes/*.js` | HTTP routing; web (EJS) vs `/api/*` REST |
-| `controllers/*.js` | Request handling, `res.render` / `res.json` |
-| `models/*.js` | Mongoose schemas |
-| `services/mealPlanService.js` | Weekly AI meal plan: load, hydrate, TTL, cache |
-| `middleware/webAuth.js` | `setLocals`, JWT from `req.session.token`, `requireLogin`, `requireAdmin` |
-| `config/` | DB, secrets, security (Helmet, CORS, HTTPS redirect) |
-
-**Auth model:** On login/register, a JWT is stored **only** in `express-session` (`req.session.token`). The browser gets an **httpOnly** session cookie. `setLocals` verifies the JWT and loads `User` into `res.locals.currentUser` for every request.
+**Version:** Phase 4
+**Live URL:** https://gismart.onrender.com
+**Stack:** Node.js · Express · EJS · MongoDB Atlas · Mongoose · JWT · Groq AI
+**Deployed on:** Render + MongoDB Atlas
 
 ---
 
-## 2. Main user-facing features
+## Table of Contents
 
-### Health profile (`/user/profile`)
-
-- Collects age, gender, weight, height, activity, **goal**.
-- **BMI** from weight and height; **TDEE** / daily calories from **Mifflin–St Jeor** × activity, then goal-specific rules.
-- **Weight loss:** optional **goal weight (kg)** and **timeline (weeks)**; calorie target uses a deficit derived from kg to lose and duration, with safety caps (see `webUserController.js`).
-- Saving the profile **clears** `weekly_meal_plan` so the next meal plan is regenerated.
-- **Disclaimer:** `views/partials/health-disclaimer.ejs` on profile and tracking.
-
-### Weekly meal plan (`/meal-plan`) & dashboard (`/dashboard`)
-
-- AI (`utils/aiMealPlanner.js`, Groq) builds a **Monday–Sunday** JSON plan; stored on the user as `weekly_meal_plan` (summary + `generatedAt` + food ids per meal).
-- **Session cache** avoids repeated DB hydration on the same visit.
-- **Auto-refresh:** if the stored plan is **older than 7 days**, the next `ensureWeeklyMealPlan` call **regenerates** via AI (see `services/mealPlanService.js`).
-- Dashboard shows **today’s** slice of that plan plus a link to the full weekly page.
-
-### Tracking (`/tracking`)
-
-- **Step 1:** Manual food log (search foods, portion, meal slot) for a selected date; **edit** and **remove** entries.
-- **Step 2 (today):** Snapshot (calories vs goal, kcal-weighted GI, water), **app-derived** conclusion and recommendations, water slider + notes, **save** persists check-in and derives `met_targets` for the calendar.
-- **30-day history** calendar uses stored `tracking_log` entries.
-
-### Foods (`/foods`, `/foods/:id`)
-
-- Public browse; admin can add/edit/delete via existing admin + food routes.
-
-### Chatbot (`POST /api/chatbot/message`)
-
-- Login required; rate-limited; uses Groq per `chatbotController`.
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Team & Work Division](#3-team--work-division)
+4. [Project Structure](#4-project-structure)
+5. [Features](#5-features)
+6. [API Reference](#6-api-reference)
+7. [Authentication Flow](#7-authentication-flow)
+8. [Database Models](#8-database-models)
+9. [Security](#9-security)
+10. [Performance Optimizations](#10-performance-optimizations)
+11. [Testing Results](#11-testing-results)
+12. [Deployment Guide](#12-deployment-guide)
+13. [Environment Variables](#13-environment-variables)
+14. [Running Locally](#14-running-locally)
+15. [Known Limitations](#15-known-limitations)
 
 ---
 
-## 3. Views layout
+## 1. Project Overview
+
+**GI Smart** is a full-stack web application that helps users manage their diet using the **Glycemic Index (GI)** — a scientific measure of how fast carbohydrate-containing foods raise blood sugar levels.
+
+Users register, complete a health profile (weight, height, age, activity level, goal), and the app calculates their **BMI** and **daily calorie target**. It then uses **Groq AI (Llama-3.3-70b)** to generate a personalised 7-day rotating meal plan drawn from a database of 143+ scientifically-rated foods. Users can log daily meals and water in a 30-day tracking calendar with rule-based daily conclusions, and ask the built-in nutrition chatbot questions (logged-in users who are not admins).
+
+### What Problem Does It Solve?
+
+Most diet apps overwhelm users with generic advice. GI Smart personalises recommendations based on the user's actual BMI category — someone trying to lose weight sees different meal options than someone who is underweight. The AI generates specific meal combinations from real GI-rated foods rather than generic tips.
+
+---
+
+## 2. Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Runtime | Node.js 18+ | JavaScript server runtime |
+| Framework | Express 4 | HTTP routing and middleware |
+| Template Engine | EJS | Server-side HTML rendering |
+| Database | MongoDB Atlas | Cloud-hosted NoSQL database |
+| ODM | Mongoose 8 | MongoDB schema and query layer |
+| Auth | JWT + express-session | Hybrid token/session authentication |
+| Password Hashing | bcryptjs (12 rounds) | Secure password storage |
+| AI | Groq API (Llama-3.3-70b) | Meal plan generation and chatbot |
+| Security | Helmet, express-mongo-sanitize, express-rate-limit | HTTP headers, NoSQL injection prevention, rate limiting |
+| Compression | compression (gzip) | Response size reduction |
+| Deployment | Render (PaaS) | Cloud hosting with auto-deploy |
+| Session Store | connect-mongo | MongoDB-backed sessions |
+
+---
+
+## 3. Team & Work Division
+
+The project was built by a team of 4. Each person owned a distinct area of the codebase end-to-end — from database to routes to views.
+
+| Member | Role |
+|---|---|
+| **Dipti** | Database, Homepage & Food Database |
+| **Alex** | AI Meal Planning, Meal Tracker & Dashboard |
+| **Tisa** | Authentication & User Management |
+| **Rohan** | Admin Panel, Chatbot, Infrastructure & Deployment |
+
+---
+
+### 👤 Dipti — Database, Homepage & Food Database
+
+**Responsible for:** The foundation of the entire application — MongoDB setup, data models and seeding scripts, the public homepage, and the complete food browsing experience including search, filter, sort, and pagination.
+
+| Area | Files | Description |
+|---|---|---|
+| MongoDB & Data Layer | `config/db.js`, `models/Food.js`, `models/User.js`, `seed.js`, `import-dataset.js` | Database connection, Mongoose schemas with compound indexes, seeding and importing the 143+ food dataset |
+| Homepage | `controllers/homeController.js`, `routes/index.js`, `views/pages/home.ejs` | Public landing page with dynamic CTA that changes based on whether the user is logged in |
+| Food Database | `controllers/foodController.js`, `controllers/webFoodController.js`, `routes/foods.js`, `routes/web-foods.js`, `views/pages/foods.ejs`, `views/pages/food-detail.ejs`, `views/pages/food-form.ejs` | REST API and web routes for browsing, searching, filtering by GI tier/category, sorting, and pagination. Parallel queries with `Promise.all` for performance |
+
+---
+
+### 👤 Alex — AI Meal Planning, Meal Tracker & Dashboard
+
+**Responsible for:** All AI-powered and tracking features — the 7-day rotating meal plan generated by Groq AI, the daily meal/water tracking system with a 30-day history calendar, and the user dashboard. Involves prompt engineering, DB-persisted weekly plans, session hydration, and structured JSON parsing.
+
+| Area | Files | Description |
+|---|---|---|
+| AI Meal Planning | `controllers/mealPlanController.js`, `routes/mealPlan.js`, `services/mealPlanService.js`, `utils/aiMealPlanner.js`, `views/pages/meal-plan.ejs` | Generates a 7-day plan with one Groq API call. Food pool capped at 60 foods filtered by BMI category. Plan stored on the user as `weekly_meal_plan`, hydrated in session; refreshes after **7 days** or on profile change |
+| Meal Tracker | `controllers/trackingController.js`, `routes/tracking.js`, `views/pages/tracking/` | Daily food log (search, portions), water and notes; **check-in** saves `met_targets` server-side; 30-day history calendar and rule-based conclusions |
+| Dashboard | `views/pages/dashboard/index.ejs` | Post-login landing page showing BMI, goal, calorie target, and **today’s meal plan** with link to full weekly plan |
+
+---
+
+### 👤 Tisa — Authentication & User Management
+
+**Responsible for:** All user identity features — registration, login, session handling, JWT tokens, route protection middleware, user profiles, and BMI calculation.
+
+| Area | Files | Description |
+|---|---|---|
+| Authentication | `controllers/authController.js`, `controllers/webAuthController.js`, `middleware/auth.js`, `middleware/webAuth.js`, `routes/auth.js`, `routes/webAuth.js`, `config/secrets.js` | Register/login with bcrypt hashing, JWT signing and verification, session-based auth for web routes, `requireLogin` / `requireAdmin` / `guestOnly` / `redirectAdminFromConsumer` |
+| User Management | `controllers/userController.js`, `controllers/webUserController.js`, `routes/users.js`, `routes/webUser.js` | REST API and web routes for profile updates and BMI/TDEE calculation (Mifflin-St Jeor; weight-loss goal uses optional target weight + weeks) |
+| Views | `views/pages/auth/login.ejs`, `views/pages/auth/register.ejs`, `views/pages/user/profile.ejs` | Login and registration with flash messages and profile page with health stats |
+
+
+---
+
+### 👤 Rohan — Admin Panel, Chatbot, Infrastructure & Deployment
+
+**Responsible for:** The app's backbone — Express setup, all security middleware, the admin panel, the AI chatbot, shared frontend assets (CSS/JS), the test suite, and the full Render + MongoDB Atlas deployment pipeline.
+
+| Area | Files | Description |
+|---|---|---|
+| App Entry & Config | `app.js`, `config/security.js` | Express app bootstrap, full middleware stack (Helmet, gzip compression, CORS, tiered rate limiting, mongo-sanitize, secure session cookie config) |
+| Admin Panel | `controllers/adminController.js`, `routes/admin.js`, `views/pages/admin/index.ejs`, `views/pages/admin/users.ejs`, `views/pages/admin/foods.ejs` | Admin-only dashboard with platform stats, user management (search, role toggle), and paginated food management. **Admins** are redirected to `/admin` and do not use the consumer app UI |
+| Chatbot | `controllers/chatbotController.js`, `routes/chatbot.js` | Floating chat bubble for **non-admin** logged-in users. Responds using Groq AI with user context. Rate-limited to 15 req/min |
+| Frontend Assets & Partials | `public/css/style.css`, `public/js/main.js`, `views/partials/header.ejs`, `views/partials/footer.ejs`, `views/partials/health-disclaimer.ejs` | Global CSS, client-side JS (search debounce, goal-card handling, flash auto-dismiss), and shared EJS partials |
+| Testing & Deployment | `tests/security.test.js`, `.env.example`, `package.json`, `docs/` | Security test suite, Render + MongoDB Atlas deployment guide, and full project documentation |
+
+---
+
+## 4. Project Structure
 
 ```
-views/
-├── partials/
-│   ├── header.ejs      # Nav, flash, opens <main class="container">
-│   ├── footer.ejs
-│   └── health-disclaimer.ejs
-└── pages/
-    ├── home.ejs, dashboard/index.ejs, meal-plan.ejs, tracking/index.ejs
-    ├── user/profile.ejs
-    ├── auth/login.ejs, register.ejs
-    ├── foods*.ejs, food-detail.ejs
-    └── admin/...
+Phase4_Project/
+├── app.js                      ← Express app entry point, middleware stack
+├── package.json
+├── seed.js                     ← Seeds 143+ foods into MongoDB
+├── import-dataset.js           ← Imports foods from CSV file
+│
+├── config/
+│   ├── db.js                   ← MongoDB Atlas connection
+│   ├── secrets.js              ← Loads JWT and session secrets
+│   └── security.js             ← Helmet, CORS, HTTPS enforcement config
+│
+├── middleware/
+│   ├── auth.js                 ← API JWT middleware (requireAuth)
+│   └── webAuth.js              ← Web session middleware (requireLogin, requireAdmin, guestOnly, setLocals, redirectAdminFromConsumer)
+│
+├── models/
+│   ├── Food.js                 ← Food schema + compound indexes
+│   └── User.js                 ← User schema + tracking_log array
+│
+├── controllers/
+│   ├── homeController.js       ← GET /
+│   ├── authController.js       ← API: register, login
+│   ├── webAuthController.js    ← Web: login form, register form, logout
+│   ├── foodController.js       ← API: CRUD for foods
+│   ├── webFoodController.js    ← Web: food list, detail, new/edit forms
+│   ├── userController.js       ← API: profile, meal log
+│   ├── webUserController.js    ← Web: dashboard, profile
+│   ├── mealPlanController.js   ← Web: meal plan page + regenerate
+│   ├── trackingController.js   ← Web: tracking log + history
+│   ├── chatbotController.js    ← API: chatbot message handler
+│   └── adminController.js      ← Web: admin dashboard, users, foods
+│
+├── routes/
+│   ├── index.js                ← GET /
+│   ├── auth.js                 ← API /api/auth
+│   ├── webAuth.js              ← Web /auth
+│   ├── foods.js                ← API /api/foods
+│   ├── web-foods.js            ← Web /foods
+│   ├── users.js                ← API /api/users
+│   ├── webUser.js              ← Web /dashboard, /user/*
+│   ├── mealPlan.js             ← Web /meal-plan
+│   ├── tracking.js             ← Web /tracking
+│   ├── chatbot.js              ← API /api/chatbot
+│   └── admin.js                ← Web /admin
+│
+├── services/
+│   └── mealPlanService.js      ← Weekly plan storage, hydration, 7-day TTL, min foods per meal padding
+│
+├── utils/
+│   └── aiMealPlanner.js        ← Builds Groq prompt + parses AI JSON response
+│
+├── views/
+│   ├── partials/
+│   │   ├── header.ejs          ← DOCTYPE → <main>, navbar, flash messages
+│   │   ├── footer.ejs          ← </main>, footer, chatbot widget (non-admin users), </body>
+│   │   └── health-disclaimer.ejs
+│   └── pages/
+│       ├── home.ejs
+│       ├── foods.ejs
+│       ├── food-detail.ejs
+│       ├── food-form.ejs
+│       ├── meal-plan.ejs
+│       ├── error.ejs
+│       ├── auth/               ← login.ejs, register.ejs
+│       ├── user/               ← profile.ejs
+│       ├── dashboard/          ← index.ejs
+│       ├── tracking/           ← index.ejs
+│       └── admin/              ← index.ejs, users.ejs, foods.ejs
+│
+├── public/
+│   ├── css/style.css
+│   └── js/main.js
+│
+├── tests/
+│   └── security.test.js
+│
+└── docs/
+    ├── DOCUMENTATION.md
+    └── PHASE4_DOCUMENTATION.md
 ```
 
-EJS uses `<%= %>` for escaped output (XSS-safe). Partials are included with `<%- include(...) %>`.
+---
+
+## 5. Features
+
+### Public Features (No Login Required)
+
+- **Homepage** — Landing page with dynamic CTA based on login state
+- **Food Database** — Browse 143+ GI-rated foods with search, filter by GI tier (Low / Medium / High) and category, sort by GI value (ascending/descending), and pagination (18 per page)
+- **Food Detail** — Full nutrition grid for any food. Missing values shown as `—` rather than hidden
+
+### Authenticated User Features
+
+- **Dashboard** — BMI, goal, daily calorie target, and **today’s** AI meal plan summary with a link to the full weekly plan
+- **Health Profile** — Weight, height, age, activity, goal (including optional **Weight Loss** target weight + weeks). BMI and TDEE from Mifflin–St Jeor; weight-loss calories use a capped deficit derived from ~7,700 kcal per kg over the chosen timeline
+- **7-Day AI Meal Plan** — One weekly menu (Mon–Sun) with **three foods per meal** (Breakfast / Lunch / Dinner / Snacks), tips, and GI-aware pool by BMI category. Full **meal-plan** page includes a calendar that maps dates onto the rotating week
+- **Daily Tracking** — Log foods (search, portions, meal slot), optional meal checkboxes, water (slider **0–5 L**), notes, and a rule-based **daily conclusion**; **`met_targets`** is computed when you save. **30-day** history grid
+- **Nutrition Chatbot** — Floating bubble for logged-in **non-admin** users (hidden for admins)
+
+### Admin Features
+
+- **Admin Dashboard** — Platform stats (total users, foods, recent signups)
+- **User Management** — Search users, toggle roles (user ↔ admin), view profiles
+- **Food Management** — Search, filter, paginated food table with edit/delete access
+
+### BMI-Based Meal Plan Logic
+
+| BMI Category | Range | Allowed GI Tiers | Max GI Value |
+|---|---|---|---|
+| Underweight | < 18.5 | Low + Medium | 69 |
+| Normal | 18.5–24.9 | Low only | 55 |
+| Overweight | 25–29.9 | Low only | 50 |
+| Obese | 30+ | Low only | 45 |
 
 ---
 
-## 4. Environment variables
+## 6. API Reference
 
-| Variable | Purpose |
-|----------|---------|
-| `MONGODB_URI` | MongoDB connection string (Atlas) |
-| `JWT_SECRET` | Signs JWTs |
-| `SESSION_SECRET` | Signs session cookie (can match JWT secret in dev) |
-| `GROQ_API_KEY` | Groq API for meal plan + chatbot |
-| `PORT` | Listen port (default 3000) |
-| `NODE_ENV` | `production` enables stricter caching, Helmet CSP, etc. |
-| `CLIENT_URL` / `CORS_ORIGINS` | Allowed CORS origins in production |
-| `SESSION_COOKIE_SECURE` | Set `true` when behind HTTPS |
-| `TRUST_PROXY` | `1` when behind a reverse proxy (e.g. Render) |
-| `ENFORCE_HTTPS` | Optional redirect to HTTPS |
+### Health Check
 
-Copy `.env.example` to `.env` and fill values.
+```
+GET /api/health
+→ { "success": true, "message": "GI Smart API running", "version": "4.0.0" }
+```
+
+### Authentication
+
+| Method | Route | Auth | Body | Response |
+|---|---|---|---|---|
+| POST | `/api/auth/register` | — | `name, email, password, goal` | `{ token, user }` |
+| POST | `/api/auth/login` | — | `email, password` | `{ token, user }` |
+
+### Foods
+
+| Method | Route | Auth | Query Params | Description |
+|---|---|---|---|---|
+| GET | `/api/foods` | — | `search, tier, category, sort, page, limit` | Paginated food list |
+| GET | `/api/foods/:id` | — | — | Single food |
+| POST | `/api/foods` | JWT | — | Create food (body: food fields) |
+| PUT | `/api/foods/:id` | JWT | — | Update food |
+| DELETE | `/api/foods/:id` | JWT | — | Delete food |
+
+**Query param examples:**
+```
+/api/foods?tier=Low&search=oats&sort=gi_asc&page=2
+```
+
+### Users
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/api/auth/me` | JWT | Compact current user (API auth) |
+| GET | `/api/users/profile` | JWT | Get current user with populated meal log (no password) |
+| PUT | `/api/users/profile` | JWT | Update `name` / `goal` (validation only; use web profile for full BMI) |
+| GET | `/api/users/meal-log` | JWT | Paginated meal log |
+| POST | `/api/users/meal-log` | JWT | Add meal log entry |
+| DELETE | `/api/users/meal-log/:entryId` | JWT | Remove meal log entry |
+| GET | `/api/users` | JWT **admin** | List all users (admin) |
+
+### Chatbot
+
+| Method | Route | Auth | Body | Description |
+|---|---|---|---|---|
+| POST | `/api/chatbot/message` | Session (logged-in **non-admin**) | `{ message, history[] }` | AI reply (same-session cookie) |
 
 ---
 
-## 5. API (REST)
+## 7. Authentication Flow
 
-Protected routes use **`Authorization: Bearer <JWT>`** via `middleware/auth.js` (`protect` / `authorize`). Web pages use the **session JWT** instead (see `middleware/webAuth.js`).
+GI Smart uses a **hybrid JWT + session** strategy: the JWT is generated on login and stored **server-side inside the session** — the browser only ever holds a session cookie (HttpOnly, inaccessible to JavaScript).
 
-- **Auth:** `/api/auth/register`, `/api/auth/login`, `/api/auth/me`
-- **Foods:** CRUD under `/api/foods`
-- **Users:** profile, meal log under `/api/users`
-- **Health:** `GET /api/health` (public)
+```
+1. User submits login form
+2. Server: bcrypt.compare(password, storedHash)
+3. Server: jwt.sign({ id }, JWT_SECRET) → token
+4. Server: req.session.token = token
+5. Browser receives session cookie only (no JWT exposed)
 
-See `routes/*.js` for the exact list.
+On each subsequent request:
+6. Session cookie sent automatically
+7. setLocals middleware: jwt.verify(token) → { id }
+8. User.findById(id).lean() → res.locals.currentUser
+9. All EJS templates can use currentUser
+```
+
+### Route Protection Middleware
+
+```
+requireLogin   → checks req.session.token exists → else redirect /auth/login
+requireAdmin   → checks currentUser.role === 'admin' → else 403 page
+guestOnly      → if already logged in, redirect /dashboard (blocks login/register pages)
+redirectAdminFromConsumer → if role === admin, allow only /admin*, food CRUD web routes, /api/*, logout; else redirect to /admin
+```
 
 ---
 
-## 6. Scripts
+## 8. Database Models
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | `nodemon app.js` |
-| `npm start` | `node app.js` |
-| `npm run seed` | Seed foods (`seed.js`) |
-| `npm run test:security` | Security smoke tests (`tests/security.test.js`) |
+### Food Schema (`models/Food.js`)
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | String | Required, trimmed |
+| `gi_value` | Number | 0–100, required |
+| `gi_tier` | String | Auto-set: Low (≤55) / Medium (56–69) / High (≥70) |
+| `category` | String | e.g. Grains, Fruits, Dairy |
+| `calories_per_100g` | Number | — |
+| `carbs_g`, `protein_g`, `fat_g`, `fibre_g` | Number | Macros per 100g |
+| `serving_size_g` | Number | Default serving size (g) |
+| `tags` | [String] | For text search |
+| `is_featured` | Boolean | Shown on homepage |
+
+**Indexes:**
+```js
+{ gi_tier: 1, gi_value: 1 }          
+{ category: 1, gi_tier: 1 }         
+{ name: "text", tags: "text" }       
+{ is_featured: 1 }                  
+```
+
+### User Schema (`models/User.js`)
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | String | Required |
+| `email` | String | Unique, required |
+| `password` | String | bcrypt hash, `select: false` |
+| `role` | String | `'user'` or `'admin'` |
+| `profile` | Object | weight, height, age, activity, goal, bmi, bmi_category, daily_calories, optional `target_weight_kg` / `weight_loss_weeks` for Weight Loss |
+| `meal_log` | [Object] | Legacy meal entries (API meal log) |
+| `tracking_log` | [Object] | `{ date, meals_followed{}, water_intake_L, notes, met_targets }` |
+| `weekly_meal_plan` | Mixed | Persisted 7-day AI plan (food ids + tips) |
+
+**Indexes:**
+```js
+{ email: 1 }                          // login lookup (unique)
+{ "tracking_log.date": -1 }          // tracking history sort
+```
 
 ---
 
-## 7. Legal / product note
+## 9. Security
 
-Automated calorie, GI, and BMI outputs are **wellness estimates**, not medical advice. The UI includes a short disclaimer on profile and tracking.
+| Layer | Implementation | Protection Against |
+|---|---|---|
+| Password storage | bcrypt, 12 salt rounds | Brute-force / rainbow tables |
+| HTTP headers | Helmet middleware | XSS, clickjacking, MIME sniffing |
+| Input sanitization | express-mongo-sanitize | NoSQL injection (`$` and `.` stripped) |
+| Output escaping | EJS `<%= %>` | XSS in rendered HTML |
+| Rate limiting — API | 100 req / 15 min | Brute-force, scraping |
+| Rate limiting — Chatbot | 15 req / 1 min | AI API abuse |
+| Payload size limit | `express.json({ limit: "10kb" })` | Large payload DoS |
+| Session cookies | `httpOnly: true`, `secure: true` (prod), `sameSite: lax` | XSS token theft, CSRF |
+| HTTPS enforcement | Redirect middleware in production | Man-in-the-middle |
+| JWT expiry | Verified on every request | Stale/forged tokens |
+| Admin routes | `requireLogin + requireAdmin` middleware | Privilege escalation |
+
+---
+
+## 10. Performance Optimizations
+
+### Backend
+
+- **Parallel queries** using `Promise.all` instead of sequential `await` — reduces response time on the food list page by ~3×
+- **`.lean()`** on all read-only Mongoose queries — returns plain JS objects, not full Mongoose documents (~3× faster)
+- **Compound MongoDB indexes** on Food and User models — dramatically reduces query time on `/foods`, `/auth/login`, and `/tracking`
+- **AI food pool capped at 60 foods** — prevents sending thousands of tokens to Groq unnecessarily
+- **Persisted weekly meal plan** — stored on the user document and hydrated into session; AI runs when there is no fresh plan or after **7 days** / profile change (not on every page view)
+
+### Frontend
+
+- **Gzip compression** (`compression` middleware) — reduces response sizes by 60–80%
+- **Static asset caching** — CSS, JS, and images cached for 7 days in production (`Cache-Control: max-age=604800`)
+- **Pagination** — 18 foods per page instead of all 143+ at once; 15 rows per page in admin tables
+- **Search debounce** — 600ms delay before firing search requests, reducing unnecessary API calls
+
+---
+
+## 11. Testing Results
+
+### API Endpoint Testing
+
+| Endpoint | Method | Test | Result |
+|---|---|---|---|
+| `/api/auth/register` | POST | Valid registration | ✅ Returns JWT, creates user |
+| `/api/auth/register` | POST | Duplicate email | ✅ Returns 400 error |
+| `/api/auth/login` | POST | Valid credentials | ✅ Returns JWT |
+| `/api/auth/login` | POST | Wrong password | ✅ Returns 401 error |
+| `/api/foods` | GET | No filters | ✅ Returns paginated list |
+| `/api/foods?tier=Low` | GET | Filter by tier | ✅ Returns only Low GI foods |
+| `/api/foods?search=oats` | GET | Search | ✅ Regex search works |
+| `/api/foods?sort=gi_asc` | GET | Sort ascending | ✅ Sorted correctly |
+| `/api/foods?page=2` | GET | Pagination | ✅ Correct skip/limit |
+| `/api/foods/:id` | GET | Invalid ID | ✅ Returns 404 |
+| `/api/foods` | POST | No JWT | ✅ Returns 401 |
+| `/api/users/profile` | GET | Valid JWT | ✅ Returns user (no password field) |
+| `/api/chatbot/message` | POST | Logged in | ✅ Returns bullet-point reply |
+| `/api/health` | GET | Any | ✅ Returns version + status |
+
+### Security Testing
+
+| Test | Result |
+|---|---|
+| Access `/dashboard` without session | ✅ Redirected to login |
+| Access `/admin` as regular user | ✅ 403 error page |
+| POST `/api/foods` without JWT | ✅ 401 Unauthorized |
+| Forge session token manually | ✅ JWT verify fails |
+| XSS in food name field | ✅ Escaped by EJS, not executed |
+| NoSQL injection in email field | ✅ Blocked by express-mongo-sanitize |
+| JSON body > 10kb | ✅ Rejected |
+| Chatbot 20 rapid requests | ✅ Rate limited after 15/min |
+| Water intake > 20 submitted | ✅ Clamped server-side |
+
+### Conditional Rendering Testing
+
+| Scenario | Expected | Result |
+|---|---|---|
+| Logged out on `/foods` | No Edit/Delete | ✅ |
+| Regular user on `/foods` | View / link to detail only | ✅ |
+| Admin on `/foods` | Edit + Delete (+ Add Food) | ✅ |
+| Regular user visiting `/admin` | 403 Access Denied | ✅ |
+| Admin visiting `/dashboard` | Redirect to `/admin` | ✅ |
+| No profile → `/meal-plan` | Prompt to complete profile | ✅ |
+
+---
+
+## 12. Deployment Guide
+
+### Step 1 — MongoDB Atlas
+
+1. Create a free cluster at [mongodb.com/cloud/atlas](https://mongodb.com/cloud/atlas)
+2. **Database Access** → Add user with password
+3. **Network Access** → Add `0.0.0.0/0` (required for Render's dynamic IPs)
+4. Copy the connection string:
+   ```
+   mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/gismart
+   ```
+
+### Step 2 — Push to GitHub
+
+```bash
+git init
+git branch -M main
+git remote add origin https://github.com/YOUR_ORG/YOUR_REPO.git
+git add .
+git commit -m "Phase 4 - Tracking, meal plans, optimised, deployment-ready"
+git push origin main
+```
+
+### Step 3 — Deploy on Render
+
+1. Go to [render.com](https://render.com) → **New Web Service** → Connect GitHub repo
+2. Configure:
+   - **Environment:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `node app.js`
+3. Add Environment Variables (see Section 13)
+4. Click **Deploy**
+
+### Step 4 — Seed the Database (One-time)
+
+Use Render's Shell tab after deployment:
+```bash
+node seed.js
+```
+
+### Step 5 — Continuous Deployment
+
+Every push to `main` triggers an automatic redeploy on Render — no manual steps needed after initial setup.
+
+---
+
+## 13. Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `MONGODB_URI` | ✅ | MongoDB Atlas connection string (see `.env.example`) |
+| `JWT_SECRET` | ✅ | Random 32+ character string for signing JWTs |
+| `SESSION_SECRET` | ✅ | Random 32+ character string for express-session |
+| `GROQ_API_KEY` | ✅ | Groq API key (free at console.groq.com) |
+| `NODE_ENV` | ✅ | Set to `production` on Render |
+| `PORT` | — | Server port (Render sets automatically; local default 3000) |
+| `SESSION_COOKIE_SECURE` | — | Set to `true` when running behind HTTPS |
+| `TRUST_PROXY` | — | Set to `1` on Render to trust the reverse proxy |
+| `CLIENT_URL` / `CORS_ORIGINS` | — | Optional; production CORS when set |
+
+---
+
+## 14. Running Locally
+
+```bash
+# 1. Clone and install
+git clone https://github.com/YOUR_ORG/YOUR_REPO.git
+cd Phase4_Project
+npm install
+
+# 2. Set up environment
+cp .env.example .env
+# Fill in MONGODB_URI, JWT_SECRET, SESSION_SECRET, GROQ_API_KEY
+
+# 3. Start server
+npm start
+
+# 4. Open in browser
+http://localhost:3000
+```
+
+### Making a User an Admin
+
+After registering, open MongoDB Atlas or Compass, find the user in the `users` collection, and change:
+```json
+{ "role": "user" }  →  { "role": "admin" }
+```
+
+### Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start with nodemon (auto-restart) |
+| `npm start` | Start without nodemon (production) |
+| `npm test` | Run all tests |
+| `npm run test:security` | Run security tests only |
+| `npm run seed` | Seed food database |
+| `npm run import-dataset` | Import foods from CSV |
+
+---
+
+## 15. Known Limitations
+
+| Limitation | Detail | Workaround |
+|---|---|---|
+| Render free tier sleeps | Instances sleep after 15 min inactivity; first request takes ~30s to wake | Upgrade to Starter ($7/mo) or use UptimeRobot to ping every 10 min |
+| Session-only plan cache | Meal plan cached in server session — lost on server restart | Click Regenerate after server wakes |
+| Groq free tier limits | Heavy concurrent use may hit API rate limits | Switch to Groq paid plan or add OpenAI fallback |
+| No real-time collaboration | Tracking logs are per-user only | Planned for future version |
+| No push notifications | No reminder to log today's meals | Future: web push or email reminders |
+| Nutrition data gaps | Some foods lack calorie/macro data | Shown as `—` in UI; admin can edit foods to fill them in |
+| Weekly plan JSON parsing | Occasionally Groq returns malformed JSON for the 7-day plan | App catches the error with a flash message; click Regenerate |

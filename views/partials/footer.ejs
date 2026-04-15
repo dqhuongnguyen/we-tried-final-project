@@ -17,8 +17,8 @@
 </footer>
 <script src="/js/main.js"></script>
 
-<!-- ── AI Chatbot Widget ─────────────────────────────────────────────────── -->
-<% if (typeof currentUser !== 'undefined' && currentUser) { %>
+<!-- ── AI Chatbot Widget (not shown to admins) ───────────────────────────── -->
+<% if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'admin') { %>
 <div id="chatbot-widget">
   <button id="chat-launcher" aria-label="Open GI Smart Assistant" title="Ask GI Smart AI">
     <span id="chat-icon">💬</span>

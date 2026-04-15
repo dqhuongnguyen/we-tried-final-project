@@ -20,7 +20,10 @@ document.querySelectorAll('.goal-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
-    card.querySelector('input').checked = true;
+    const input = card.querySelector('input');
+    input.checked = true;
+    // Programmatic .checked does not fire "change" — profile page listens for it to show weight-loss fields
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 });
 

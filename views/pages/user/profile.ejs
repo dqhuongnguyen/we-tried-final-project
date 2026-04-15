@@ -45,6 +45,9 @@
       </select>
     </div>
     <h2 style="margin-top:1.5rem">My Health Goal</h2>
+    <p class="profile-goal-hint" style="margin:0 0 1rem;font-size:.95rem;color:var(--ink2, #555)">
+      You can switch goals anytime. If you use Weight Loss, your goal weight and timeline are kept when you pick another goal so you can switch back without re-entering them.
+    </p>
     <div class="goal-grid">
       <% [['General Health','🌿'],['Weight Loss','⚖️'],['Blood Sugar Control','🩸'],['Sports Performance','💪']].forEach(([v,e]) => { %>
         <label class="goal-card <%= (user.profile?.goal||user.goal)===v?'selected':'' %>">

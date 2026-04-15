@@ -104,7 +104,6 @@ exports.updateProfile = async (req, res) => {
     const { age, gender, weight_kg, height_cm, activity, goal, name, target_weight_kg, weight_loss_weeks } = req.body;
     const user = await User.findById(res.locals.currentUser._id);
     if (name) user.name = name;
-    if (goal) user.goal = goal;
 
     if (weight_kg && height_cm) {
       const w = +weight_kg;
@@ -115,7 +114,10 @@ exports.updateProfile = async (req, res) => {
         const tw = parseFloat(target_weight_kg);
         const wk = parseInt(weight_loss_weeks, 10);
         if (!Number.isFinite(tw) || !Number.isFinite(wk)) {
-          req.flash("error", "For weight loss, enter a goal weight (kg) and how many weeks you want to reach it.");
+          req.flash(
+            "error",
+            "For weight loss, enter both goal weight (kg) and weeks (2–104) in the fields below."
+          );
           return res.redirect("/user/profile");
         }
         if (tw >= w) {
@@ -150,8 +152,21 @@ exports.updateProfile = async (req, res) => {
       if (goal === "Weight Loss" && weightLoss) {
         profile.target_weight_kg = weightLoss.target_weight_kg;
         profile.weight_loss_weeks = weightLoss.weight_loss_weeks;
+      } else if (goal !== "Weight Loss") {
+        // Keep saved targets when switching to another goal so "Weight Loss" can be selected again
+        // without re-entering (assigning profile without these keys used to wipe them in MongoDB).
+        const twBody = parseFloat(target_weight_kg);
+        const wkBody = parseInt(weight_loss_weeks, 10);
+        if (Number.isFinite(twBody) && Number.isFinite(wkBody)) {
+          profile.target_weight_kg = twBody;
+          profile.weight_loss_weeks = wkBody;
+        } else if (user.profile?.target_weight_kg != null && user.profile?.weight_loss_weeks != null) {
+          profile.target_weight_kg = user.profile.target_weight_kg;
+          profile.weight_loss_weeks = user.profile.weight_loss_weeks;
+        }
       }
       user.profile = profile;
+      user.goal = profile.goal;
 
       let msg = "Profile updated! Your meal plan will regenerate to match your new targets.";
       if (goal === "Weight Loss" && result.weight_loss_deficit_capped) {
@@ -166,6 +181,10 @@ exports.updateProfile = async (req, res) => {
       req.flash("success", msg);
       res.redirect("/dashboard");
       return;
+    }
+    if (goal) {
+      user.goal = goal;
+      if (user.profile) user.profile.goal = goal;
     }
     await user.save();
     await User.updateOne({ _id: user._id }, { $unset: { weekly_meal_plan: 1 } });

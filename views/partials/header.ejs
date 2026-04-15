@@ -9,25 +9,37 @@
 </head>
 <body>
 <nav class="navbar" aria-label="Main navigation">
-  <a href="/" class="nav-brand">GI<span>Smart</span></a>
+  <a href="<%= currentUser && currentUser.role === 'admin' ? '/admin' : '/' %>" class="nav-brand">GI<span>Smart</span></a>
 
   <ul class="nav-links">
+    <% if (currentUser && currentUser.role === 'admin') { %>
+    <li><a href="/admin" class="nav-link-admin">Admin panel</a></li>
+    <li class="nav-user-block">
+      <details class="nav-user-dropdown">
+        <summary class="nav-profile-summary" aria-label="Account menu">
+          <span class="nav-avatar" aria-hidden="true"><%= currentUser.name.charAt(0).toUpperCase() %></span>
+          <span class="nav-user-name"><%= currentUser.name.split(' ')[0] %></span>
+          <span class="admin-badge">admin</span>
+          <span class="nav-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="nav-dropdown-panel">
+          <form method="POST" action="/auth/logout" class="nav-dropdown-form">
+            <button type="submit" class="nav-dropdown-item nav-dropdown-signout">Sign out</button>
+          </form>
+        </div>
+      </details>
+    </li>
+    <% } else if (currentUser) { %>
     <li><a href="/foods">Foods</a></li>
-
-    <% if (currentUser) { %>
     <li><a href="/dashboard">Dashboard</a></li>
     <li><a href="/meal-plan">Meal plan</a></li>
     <li><a href="/tracking">Tracking</a></li>
-    <% if (currentUser.role === 'admin') { %>
-    <li><a href="/admin" class="nav-link-admin">Admin</a></li>
-    <% } %>
 
     <li class="nav-user-block">
       <details class="nav-user-dropdown">
         <summary class="nav-profile-summary" aria-label="Account menu">
           <span class="nav-avatar" aria-hidden="true"><%= currentUser.name.charAt(0).toUpperCase() %></span>
           <span class="nav-user-name"><%= currentUser.name.split(' ')[0] %></span>
-          <% if (currentUser.role === 'admin') { %><span class="admin-badge">admin</span><% } %>
           <span class="nav-chevron" aria-hidden="true"></span>
         </summary>
         <div class="nav-dropdown-panel">

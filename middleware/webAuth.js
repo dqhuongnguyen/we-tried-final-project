@@ -25,7 +25,10 @@ exports.setLocals = async (req, res, next) => {
 
 // Block logged-in users from /auth pages
 exports.guestOnly = (req, res, next) => {
-  if (req.session?.token) return res.redirect("/dashboard");
+  if (req.session?.token) {
+    if (res.locals.currentUser?.role === "admin") return res.redirect("/admin");
+    return res.redirect("/dashboard");
+  }
   next();
 };
 
@@ -71,3 +74,27 @@ function requireAdmin(req, res, next) {
   next();
 }
 exports.requireAdmin = requireAdmin;
+
+/**
+ * Logged-in admins only use the admin panel + food CRUD web routes + API.
+ * Everything else (home, dashboard, meal plan, consumer foods list, etc.) → /admin
+ */
+function redirectAdminFromConsumer(req, res, next) {
+  if (!req.session?.token || !res.locals.currentUser) return next();
+  if (res.locals.currentUser.role !== "admin") return next();
+
+  const path = req.path || "";
+  const method = req.method || "GET";
+
+  if (path.startsWith("/admin")) return next();
+  if (path === "/auth/logout" && method === "POST") return next();
+  if (path.startsWith("/api/")) return next();
+  if (path === "/foods/new") return next();
+  if (path === "/foods" && method === "POST") return next();
+  if (/^\/foods\/[^/]+\/edit$/.test(path)) return next();
+  if (/^\/foods\/[^/]+$/.test(path)) return next();
+
+  if (method === "GET" || method === "HEAD") return res.redirect(302, "/admin");
+  return res.redirect(303, "/admin");
+}
+exports.redirectAdminFromConsumer = redirectAdminFromConsumer;

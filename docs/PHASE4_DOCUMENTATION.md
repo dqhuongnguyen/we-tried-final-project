@@ -46,6 +46,12 @@ Phase 4 focuses on **meal planning**, **daily tracking**, **performance**, **sec
 
 - `views/partials/health-disclaimer.ejs` — not medical advice (profile + tracking).
 
+### Admin accounts
+
+- **`role: "admin"`** (set in MongoDB) unlocks `/admin` and food CRUD web routes.
+- **Consumer routes** (`/dashboard`, `/meal-plan`, `/tracking`, profile, etc.) redirect to **`/admin`** (`redirectAdminFromConsumer` in `middleware/webAuth.js`).
+- **Chatbot widget** is not rendered for admins (`footer.ejs`).
+
 ---
 
 ## 2. Functional & security testing

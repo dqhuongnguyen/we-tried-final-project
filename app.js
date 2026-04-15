@@ -11,7 +11,7 @@ const rateLimit      = require("express-rate-limit");
 const compression    = require("compression");           // Phase 4
 
 const connectDB     = require("./config/db");
-const { setLocals } = require("./middleware/webAuth");
+const { setLocals, redirectAdminFromConsumer } = require("./middleware/webAuth");
 const secrets       = require("./config/secrets");
 const { MongoStore } = require("connect-mongo");
 const { corsOptions, helmetMiddleware, enforceHttps } = require("./config/security");
@@ -92,6 +92,7 @@ app.use(session({
 }));
 app.use(flash());
 app.use(setLocals);
+app.use(redirectAdminFromConsumer);
 
 // ── Web (EJS) Routes ──────────────────────────────────────────────────────────
 app.use("/",          require("./routes/index"));
